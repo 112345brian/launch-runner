@@ -3,7 +3,7 @@
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src"]
 addopts = "-q"
 
 [tool.ruff]
@@ -15,9 +15,9 @@ select = ["F", "E9", "E711", "E712", "E713", "E714", "E721", "E722"]
 
 # This repository dogfoods the contract it publishes: a process may only be started by an adapter.
 [tool.commandport]
-roots = ["commandport", "proclaunch", "lifecycle_runner"]
+source_roots = ["distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src"]
 allow = ["lifecycle_runner.adapters", "proclaunch.adapters"]
-exclude_dirs = ["tests", "distributions"]
+exclude_dirs = ["tests"]
 
 [tool.importlinter]
 root_packages = ["commandport", "proclaunch", "lifecycle_runner"]

@@ -45,7 +45,7 @@ Issues = "https://github.com/112345brian/launch-runner/issues"
 packages = ["proclaunch", "proclaunch.adapters"]
 
 [tool.setuptools.package-dir]
-proclaunch = "../../proclaunch"
+"" = "src"
 
 [tool.setuptools.package-data]
 proclaunch = ["py.typed"]

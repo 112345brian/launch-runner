@@ -18,8 +18,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Install
-        run: python -m pip install --upgrade pip pytest psutil import-linter ruff setuptools
+      - name: Install (editable, so the tools and subprocess tests import the packages)
+        run: >
+          python -m pip install --upgrade pip pytest import-linter ruff setuptools
+          -e distributions/commandport -e distributions/proclaunch -e distributions/lifecycle-runner
       - name: Lint
         run: ruff check .
       - name: Import contracts

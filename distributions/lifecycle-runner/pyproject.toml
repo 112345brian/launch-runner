@@ -46,7 +46,7 @@ Issues = "https://github.com/112345brian/launch-runner/issues"
 packages = ["lifecycle_runner", "lifecycle_runner.adapters"]
 
 [tool.setuptools.package-dir]
-lifecycle_runner = "../../lifecycle_runner"
+"" = "src"
 
 [tool.setuptools.package-data]
 lifecycle_runner = ["py.typed"]

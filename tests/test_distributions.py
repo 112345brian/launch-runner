@@ -18,9 +18,9 @@ DISTRIBUTIONS = REPO / "distributions"
 
 # distribution name -> (import name, package directory)
 LIBRARIES = {
-    "commandport": ("commandport", REPO / "commandport"),
-    "proclaunch": ("proclaunch", REPO / "proclaunch"),
-    "lifecycle-runner": ("lifecycle_runner", REPO / "lifecycle_runner"),
+    "commandport": ("commandport", DISTRIBUTIONS / "commandport" / "src" / "commandport"),
+    "proclaunch": ("proclaunch", DISTRIBUTIONS / "proclaunch" / "src" / "proclaunch"),
+    "lifecycle-runner": ("lifecycle_runner", DISTRIBUTIONS / "lifecycle-runner" / "src" / "lifecycle_runner"),
 }
 # the import name of a third-party dependency -> its distribution name
 THIRD_PARTY = {"psutil": "psutil"}
@@ -47,7 +47,8 @@ def _imported_top_level_names(package_dir: Path) -> set[str]:
 
 
 def _package_version(import_name: str) -> str:
-    tree = ast.parse((REPO / import_name / "__init__.py").read_text(encoding="utf-8"))
+    package_dir = next(d for name, d in LIBRARIES.values() if name == import_name)
+    tree = ast.parse((package_dir / "__init__.py").read_text(encoding="utf-8"))
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "__version__" for t in node.targets):
             return ast.literal_eval(node.value)
@@ -150,10 +151,9 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
     import shutil
 
     tree = tmp_path / "tree"
-    ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "build", "*.egg-info")
-    for _, package_dir in LIBRARIES.values():
-        shutil.copytree(package_dir, tree / package_dir.name, ignore=ignore)
-    shutil.copytree(DISTRIBUTIONS, tree / "distributions", ignore=ignore)
+    shutil.copytree(DISTRIBUTIONS, tree / "distributions", ignore=shutil.ignore_patterns(
+        "__pycache__", "*.pyc", "build", "*.egg-info",
+    ))
 
     wheels = tmp_path / "wheels"
     for dist in ("commandport", "proclaunch", "lifecycle-runner", "launch-runner"):

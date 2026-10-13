@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-PKG = Path(__file__).resolve().parent.parent / "lifecycle_runner"
+PKG = Path(__file__).resolve().parent.parent / "distributions" / "lifecycle-runner" / "src" / "lifecycle_runner"
 
 IO_MODULES = {
     "subprocess", "psutil", "socket", "urllib", "http", "tempfile", "shutil", "signal",

@@ -14,7 +14,7 @@ def test_the_contract_package_is_pure():
     forbidden = {"subprocess", "os", "psutil", "socket", "urllib", "http", "tempfile", "shutil", "signal",
                  "ctypes", "requests", "lifecycle_runner", "proclaunch"}
     for name in ("domain.py", "ports.py", "testing.py", "__init__.py"):
-        tree = ast.parse((REPO / "commandport" / name).read_text(encoding="utf-8"))
+        tree = ast.parse((REPO / "distributions" / "commandport" / "src" / "commandport" / name).read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             modules = []
             if isinstance(node, ast.Import):

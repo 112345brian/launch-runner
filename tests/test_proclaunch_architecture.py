@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-PKG = Path(__file__).resolve().parent.parent / "proclaunch"
+PKG = Path(__file__).resolve().parent.parent / "distributions" / "proclaunch" / "src" / "proclaunch"
 
 # Modules that perform I/O. The pure core may not import them.
 IO_MODULES = {

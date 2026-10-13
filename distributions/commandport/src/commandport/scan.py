@@ -17,6 +17,11 @@ Configuration, in the project's ``pyproject.toml``::
     baseline = "tests/commandport_baseline.json"   # optional: legacy findings, shrink-only
     exclude_dirs = ["tests", ".venv"]              # optional: directory names never scanned
     fix_hint = "use myapp.procs.run(...)"          # optional: what the failure message tells the developer
+    source_roots = ["src"]                         # optional: import roots (a src layout); also scanned
+
+A directory named in ``source_roots`` is both scanned and the root module names are taken relative to, so
+``allow = ["myapp.adapters"]`` matches ``src/myapp/adapters/x.py`` in a ``src`` layout (or one ``src`` directory
+per distribution in a monorepo). Without it, module names are relative to the project root.
 
 ``allow`` defaults to the two reference implementations' adapters (``lifecycle_runner.adapters``,
 ``proclaunch.adapters``) when the key is omitted; an explicit ``allow = []`` means no module may use a raw
@@ -90,6 +95,7 @@ class ScanConfig:
     baseline: Path | None = None
     exclude_dirs: frozenset[str] = DEFAULT_EXCLUDE_DIRS
     fix_hint: str | None = None
+    source_roots: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, order=True)
@@ -139,8 +145,8 @@ def config_from_table(base: Path, table: dict) -> ScanConfig:
             raise ConfigError(f"[tool.commandport].{key} must be a list of non-empty strings")
         return tuple(value)
 
-    roots = strings("roots", required=True)
-    if not roots:
+    roots = strings("roots", required="source_roots" not in table)
+    if not roots and not table.get("source_roots"):
         raise ConfigError("[tool.commandport].roots must name at least one directory")
     exempt: list[Exemption] = []
     for entry in table.get("exempt", []) or []:
@@ -159,14 +165,25 @@ def config_from_table(base: Path, table: dict) -> ScanConfig:
     fix_hint = table.get("fix_hint")
     if fix_hint is not None and (not isinstance(fix_hint, str) or not fix_hint.strip()):
         raise ConfigError("[tool.commandport].fix_hint must be a non-empty string")
+    source_roots = tuple(p.replace("\\", "/").strip("/") for p in strings("source_roots"))
     return ScanConfig(
-        root=base, roots=roots, allow=strings("allow") if "allow" in table else DEFAULT_ALLOW,
+        root=base, roots=tuple(dict.fromkeys((*roots, *source_roots))),
+        allow=strings("allow") if "allow" in table else DEFAULT_ALLOW,
         exempt=tuple(exempt), baseline=(base / baseline) if baseline else None, exclude_dirs=excluded,
-        fix_hint=fix_hint.strip() if fix_hint else None,
+        fix_hint=fix_hint.strip() if fix_hint else None, source_roots=source_roots,
     )
 
 
 # --------------------------------------------------------------------------------------------- scanning
+def _module_for(rel: str, source_roots: tuple[str, ...]) -> str:
+    """The dotted module a root-relative path imports as: relative to the longest source root containing it."""
+    best = ""
+    for source_root in source_roots:
+        if rel.startswith(source_root + "/") and len(source_root) > len(best):
+            best = source_root
+    return _module_name(rel[len(best) + 1:] if best else rel)
+
+
 def _module_name(rel: str) -> str:
     parts = rel[:-3].split("/") if rel.endswith(".py") else rel.split("/")
     if parts and parts[-1] == "__init__":
@@ -237,7 +254,7 @@ def collect(config: ScanConfig) -> tuple[Finding, ...]:
     out: list[Finding] = []
     for path in _python_files(config):
         rel = path.relative_to(config.root).as_posix()
-        module = _module_name(rel)
+        module = _module_for(rel, config.source_roots)
         if _allowed(module, config.allow) or _exempt(rel, config.exempt):
             continue
         try:

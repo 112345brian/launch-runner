@@ -43,7 +43,7 @@ Issues = "https://github.com/112345brian/launch-runner/issues"
 packages = ["commandport"]
 
 [tool.setuptools.package-dir]
-commandport = "../../commandport"
+"" = "src"
 
 [tool.setuptools.package-data]
 commandport = ["py.typed"]

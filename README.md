@@ -54,11 +54,41 @@ roots = ["myapp"]
 python -m commandport.scan
 ```
 
+## Layout
+
+Each distribution owns its source, so each builds (and its sdist is) self-contained:
+
+```
+distributions/
+  commandport/       pyproject.toml  README.md  LICENSE  src/commandport/
+  proclaunch/        pyproject.toml  README.md  LICENSE  src/proclaunch/
+  lifecycle-runner/  pyproject.toml  README.md  LICENSE  src/lifecycle_runner/
+  launch-runner/     pyproject.toml  README.md  LICENSE  (meta-package, no code)
+tests/               the contract, the three libraries, and the release gate
+```
+
 ## Develop
 
 ```
-python -m pip install pytest psutil import-linter ruff setuptools
+python -m pip install pytest import-linter ruff setuptools
+python -m pip install -e distributions/commandport -e distributions/proclaunch -e distributions/lifecycle-runner
 python -m pytest
+python -m commandport.scan
+lint-imports
 ```
+
+## Release
+
+Versions move together (`tests/test_distributions.py` fails on drift). Build with either tool; the sdists are
+self-contained:
+
+```
+python -m build distributions/commandport
+python -m build distributions/proclaunch
+python -m build distributions/lifecycle-runner
+python -m build distributions/launch-runner
+```
+
+Upload in dependency order: `commandport`, `proclaunch`, `lifecycle-runner`, `launch-runner`.
 
 MIT licensed. Source: https://github.com/112345brian/launch-runner
