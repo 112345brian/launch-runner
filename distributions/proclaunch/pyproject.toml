@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proclaunch"
+version = "0.1.0"
+description = "Start, stop and supervise long-running background processes with a contract (implements commandport)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Brian Powers" }]
+keywords = [
+    "subprocess",
+    "process",
+    "daemon",
+    "service",
+    "windows",
+    "task-scheduler",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "commandport==0.1.0",
+    "psutil>=5.9",
+]
+
+[project.urls]
+Homepage = "https://github.com/112345brian/launch-runner"
+Repository = "https://github.com/112345brian/launch-runner"
+Issues = "https://github.com/112345brian/launch-runner/issues"
+
+[tool.setuptools]
+packages = ["proclaunch", "proclaunch.adapters"]
+
+[tool.setuptools.package-dir]
+proclaunch = "../../proclaunch"
+
+[tool.setuptools.package-data]
+proclaunch = ["py.typed"]

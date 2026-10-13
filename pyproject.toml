@@ -1,0 +1,57 @@
+# Development tooling for the repository. The published distributions are described under distributions/;
+# there is deliberately no [project] table here.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["F", "E9", "E711", "E712", "E713", "E714", "E721", "E722"]
+
+# This repository dogfoods the contract it publishes: a process may only be started by an adapter.
+[tool.commandport]
+roots = ["commandport", "proclaunch", "lifecycle_runner"]
+allow = ["lifecycle_runner.adapters", "proclaunch.adapters"]
+exclude_dirs = ["tests", "distributions"]
+
+[tool.importlinter]
+root_packages = ["commandport", "proclaunch", "lifecycle_runner"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "commandport contract must stay pure: no process, file or network module, no implementation"
+type = "forbidden"
+source_modules = ["commandport.domain", "commandport.ports", "commandport.testing"]
+forbidden_modules = ["lifecycle_runner", "proclaunch", "subprocess", "psutil", "socket", "urllib", "tempfile", "shutil", "os"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "proclaunch core must not import adapters or process/file/network modules"
+type = "forbidden"
+source_modules = ["proclaunch.domain", "proclaunch.ports", "proclaunch.launching", "proclaunch.services", "proclaunch.readiness"]
+forbidden_modules = ["proclaunch.adapters", "subprocess", "psutil", "socket", "urllib", "tempfile", "shutil"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "proclaunch adapters must not import application logic or the composition root"
+type = "forbidden"
+source_modules = ["proclaunch.adapters"]
+forbidden_modules = ["proclaunch.api", "proclaunch.launching", "proclaunch.services", "proclaunch.readiness"]
+
+[[tool.importlinter.contracts]]
+name = "lifecycle_runner core must not import adapters or process/file/network modules"
+type = "forbidden"
+source_modules = ["lifecycle_runner.ports", "lifecycle_runner.runner", "lifecycle_runner.capture"]
+forbidden_modules = ["lifecycle_runner.adapters", "proclaunch", "subprocess", "psutil", "socket", "urllib", "tempfile", "shutil"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "lifecycle_runner adapters must not import the runner or the composition root"
+type = "forbidden"
+source_modules = ["lifecycle_runner.adapters"]
+forbidden_modules = ["lifecycle_runner.api", "lifecycle_runner.runner"]
