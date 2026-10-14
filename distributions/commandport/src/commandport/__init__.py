@@ -24,4 +24,4 @@ The guarantees every implementation of the contract gives (they are why the cont
 - A timeout kills the whole process tree and reports ``TIMED_OUT`` with the output so far.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "launch-runner"
-version = "0.1.0"
+version = "0.1.1"
 description = "Everything for running processes safely: the commandport contract, lifecycle-runner and proclaunch."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,9 +31,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "commandport==0.1.0",
-    "lifecycle-runner==0.1.0",
-    "proclaunch==0.1.0",
+    "commandport==0.1.1",
+    "lifecycle-runner==0.1.1",
+    "proclaunch==0.1.1",
 ]
 
 [project.urls]

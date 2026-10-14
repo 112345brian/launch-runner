@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "proclaunch"
-version = "0.1.0"
+version = "0.1.1"
 description = "Start, stop and supervise long-running background processes with a contract (implements commandport)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [{ name = "Brian Powers" }]
 keywords = [
     "subprocess",
@@ -32,7 +32,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "commandport==0.1.0",
+    "commandport==0.1.1",
     "psutil>=5.9",
 ]
 

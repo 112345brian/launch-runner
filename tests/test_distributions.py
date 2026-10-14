@@ -108,7 +108,7 @@ def test_every_distribution_carries_complete_publishing_metadata():
     for dist in (*LIBRARIES, "launch-runner"):
         project = _project(dist)
         assert project["license"] == "MIT", dist
-        assert project["license-files"] == ["LICENSE"], dist
+        assert "LICENSE" in project["license-files"], dist
         assert (DISTRIBUTIONS / dist / "LICENSE").is_file(), f"{dist} has no LICENSE file"
         assert project["authors"] and all(a.get("name") for a in project["authors"]), dist
         assert {"Homepage", "Repository", "Issues"} <= set(project["urls"]), dist
@@ -130,6 +130,61 @@ def test_every_library_ships_a_py_typed_marker_and_declares_it_as_package_data()
         assert (package_dir / "py.typed").is_file(), f"{import_name}/py.typed missing"
         config = tomllib.loads((DISTRIBUTIONS / dist / "pyproject.toml").read_text(encoding="utf-8"))
         assert config["tool"]["setuptools"]["package-data"][import_name] == ["py.typed"]
+
+
+def test_third_party_notices_referenced_by_code_are_declared_for_packaging():
+    """Code adapted from another project carries that project's licence notice. If any module says so, the
+    notice file must sit in the distribution and be listed in ``license-files`` (so wheel and sdist ship it)."""
+    for dist, (import_name, package_dir) in LIBRARIES.items():
+        mentions = [
+            p for p in package_dir.rglob("*.py") if "THIRD_PARTY_NOTICES" in p.read_text(encoding="utf-8")
+        ]
+        if not mentions:
+            continue
+        assert (DISTRIBUTIONS / dist / "THIRD_PARTY_NOTICES.md").is_file(), f"{dist}: notice file missing"
+        declared = _project(dist)["license-files"]
+        assert "THIRD_PARTY_NOTICES.md" in declared, f"{dist}: notice not in license-files ({declared})"
+
+
+@pytest.mark.parametrize("dist", sorted(LIBRARIES))
+def test_the_sdist_is_self_contained_and_a_wheel_built_from_it_has_the_code(dist, tmp_path):
+    """``python -m build`` builds an sdist first and then a wheel *from* it. If the sdist lacked the package
+    (sources outside the project directory), that wheel would be empty and publish silently broken."""
+    import os
+    import shutil
+    import tarfile
+    import zipfile
+
+    from setuptools import build_meta
+
+    project = tmp_path / "project"
+    shutil.copytree(
+        DISTRIBUTIONS / dist, project,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "build", "dist", "*.egg-info"),
+    )
+    previous = os.getcwd()
+    os.chdir(project)
+    try:
+        sdist_name = build_meta.build_sdist(str(tmp_path / "sdist"))
+    finally:
+        os.chdir(previous)
+    unpacked = tmp_path / "unpacked"
+    with tarfile.open(tmp_path / "sdist" / sdist_name) as archive:
+        archive.extractall(unpacked, filter="data")
+    (root,) = list(unpacked.iterdir())
+    import_name, _ = LIBRARIES[dist]
+    assert (root / "src" / import_name / "__init__.py").is_file(), f"sdist of {dist} has no {import_name} source"
+    if dist == "proclaunch":
+        assert (root / "THIRD_PARTY_NOTICES.md").is_file(), "the proclaunch sdist is missing its third-party notice"
+
+    os.chdir(root)
+    try:
+        wheel_name = build_meta.build_wheel(str(tmp_path / "wheel"))
+    finally:
+        os.chdir(previous)
+    names = zipfile.ZipFile(tmp_path / "wheel" / wheel_name).namelist()
+    assert f"{import_name}/__init__.py" in names, f"wheel built from the sdist of {dist} is empty"
+    assert f"{import_name}/py.typed" in names
 
 
 # ----------------------------------------------------------------------------- build + install smoke test
@@ -173,6 +228,10 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
         assert any(n.endswith("/licenses/LICENSE") or n.endswith("LICENSE") for n in names), f"{wheel.name}: no LICENSE"
         if not wheel.name.startswith("launch_runner"):
             assert any(n.endswith("/py.typed") for n in names), f"{wheel.name}: no py.typed"
+        if wheel.name.startswith("proclaunch"):
+            assert any(n.endswith("licenses/THIRD_PARTY_NOTICES.md") for n in names), (
+                f"{wheel.name}: the dmon third-party notice is not in the wheel"
+            )
         metadata = next(n for n in names if n.endswith(".dist-info/METADATA"))
         text = zipfile.ZipFile(wheel).read(metadata).decode("utf-8")
         assert "License-Expression: MIT" in text and "Author: Brian Powers" in text, wheel.name

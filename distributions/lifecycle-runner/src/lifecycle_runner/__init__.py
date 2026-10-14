@@ -56,4 +56,4 @@ Callers must consume results; ``tests/test_lifecycle_runner.py`` fails on a call
 that discards one.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

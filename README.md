@@ -91,4 +91,7 @@ python -m build distributions/launch-runner
 
 Upload in dependency order: `commandport`, `proclaunch`, `lifecycle-runner`, `launch-runner`.
 
-MIT licensed. Source: https://github.com/112345brian/launch-runner
+MIT licensed. Portions of `proclaunch` are adapted from dmon (MIT, (c) 2025 Atomie CHEN); the
+notice ships with that distribution (`distributions/proclaunch/THIRD_PARTY_NOTICES.md`).
+
+Source: https://github.com/112345brian/launch-runner
