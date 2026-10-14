@@ -12,8 +12,8 @@ Standard library only; it imports no process, file or network module, so an appl
   Configure it in `pyproject.toml` under `[tool.commandport]`, run `python -m commandport.scan`, or call
   `commandport.scan.assert_clean()` from a test.
 
-Implementations: [`lifecycle-runner`](../lifecycle-runner) (run / capture / stream) and
-[`proclaunch`](../proclaunch) (detached services). Install `launch-runner` to get all three.
+Implementations: [`lifecycle-runner`](https://github.com/112345brian/launch-runner/tree/main/distributions/lifecycle-runner) (run / capture / stream) and
+[`proclaunch`](https://github.com/112345brian/launch-runner/tree/main/distributions/proclaunch) (detached services). Install `launch-runner` to get all three.
 
 Guarantees every implementation of the contract gives: it never raises (a failure is a result with an outcome),
 never opens a console window on Windows, decodes text as UTF-8, closes stdin unless text is supplied, and on a
