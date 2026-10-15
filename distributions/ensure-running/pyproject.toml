@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ensure-running"
+version = "0.1.0"
+description = "Keep named commands running: check a condition per target and start the command when it does not hold."
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Brian Powers" }]
+dependencies = ["commandport==0.1.1", "proclaunch==0.1.1"]
+
+[tool.setuptools]
+packages = ["ensure_running"]
+
+[tool.setuptools.package-dir]
+"" = "src"
