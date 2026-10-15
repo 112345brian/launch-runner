@@ -4,15 +4,9 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from collections.abc import Callable
 
 from commandport.domain import LaunchResult
-
-
-class ConditionState(enum.Enum):
-    SATISFIED = "satisfied"
-    UNSATISFIED = "unsatisfied"
-    UNKNOWN = "unknown"  # could not tell; never a reason to start anything
 
 
 @dataclass(frozen=True)
@@ -23,6 +17,7 @@ class Target:
     argv: tuple[str, ...]
     cwd: str | None = None
     log_path: Path | None = None
+    check: tuple[str, ...] | None = None  # a client's "should this run?" command (see config); None: the default
     max_starts: int = 5  # starts allowed inside ``window_seconds`` before the target is held back
     window_seconds: float = 3600.0
 
@@ -33,16 +28,18 @@ class Target:
             raise ValueError("Target.max_starts must be >= 1 and window_seconds > 0")
 
 
-class Condition(Protocol):
-    def check(self, target: Target) -> ConditionState:
-        """Never raises; a failure to find out is UNKNOWN."""
+ShouldRun = Callable[[Target], bool]
+"""The one question the library asks of a client: should this target be started now?
+
+True: start it (subject to the restart cap and to the service record refusing a second copy).
+False: leave it alone. Raising means "could not tell" and also starts nothing."""
 
 
 class Outcome(enum.Enum):
-    OK = "ok"  # condition already held
+    OK = "ok"  # no start needed
     STARTED = "started"
     START_FAILED = "start_failed"
-    UNKNOWN = "unknown"  # condition could not be evaluated; nothing was started
+    UNKNOWN = "unknown"  # the check raised, so it could not be told; nothing was started
     THROTTLED = "throttled"  # restart cap reached; nothing was started
     DRY_RUN = "dry_run"  # would have started
 

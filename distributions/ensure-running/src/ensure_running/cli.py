@@ -19,9 +19,9 @@ from proclaunch.services import ServiceManager
 
 from ensure_running import config as config_mod
 from ensure_running import history as history_mod
-from ensure_running.conditions import ServiceRunning
+from ensure_running.conditions import CommandCheck, service_not_running
 from ensure_running.config import Config, ConfigError
-from ensure_running.domain import Outcome
+from ensure_running.domain import Outcome, Target
 from ensure_running.reconciler import Reconciler
 
 
@@ -50,10 +50,20 @@ def _job_spec(cfg: Config, config_path: Path) -> ProcessSpec:
     )
 
 
+def _should_run(cfg: Config):
+    """Per target: its own ``check`` command when it has one, else "its recorded service is not running"."""
+    default, command = service_not_running(cfg.state_dir), CommandCheck()
+
+    def should_run(target: Target) -> bool:
+        return command(target) if target.check else default(target)
+
+    return should_run
+
+
 def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
     hist_path = cfg.state_dir / "history.json"
     reconciler = Reconciler(
-        _ServiceStarter(_manager(cfg)), ServiceRunning(cfg.state_dir),
+        _ServiceStarter(_manager(cfg)), _should_run(cfg),
         now=time.time, history=history_mod.load(hist_path), dry_run=args.dry_run,
     )
     results = reconciler.reconcile(cfg.targets)

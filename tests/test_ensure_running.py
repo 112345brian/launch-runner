@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from commandport.domain import LaunchMethod, LaunchResult
-from ensure_running import ConditionState, Outcome, Reconciler, Target
+from ensure_running import Outcome, Reconciler, Target
 
 
 class Launcher:
@@ -15,14 +15,13 @@ class Launcher:
         return self.result
 
 
-class Cond:
-    def __init__(self, state):
-        self.state = state
-
-    def check(self, target):
-        if isinstance(self.state, Exception):
-            raise self.state
-        return self.state
+def answer(value):
+    """A client's check: a plain callable returning a bool, or raising when it cannot tell."""
+    def should_run(target):
+        if isinstance(value, Exception):
+            raise value
+        return value
+    return should_run
 
 
 T = Target("proj", ("claude", "remote-control"), cwd="/p", max_starts=2, window_seconds=100)
@@ -31,35 +30,35 @@ T = Target("proj", ("claude", "remote-control"), cwd="/p", max_starts=2, window_
 def run(state, launcher=None, **kw):
     launcher = launcher or Launcher()
     clock = kw.pop("clock", lambda: 1000.0)
-    r = Reconciler(launcher, Cond(state), now=clock, **kw)
+    r = Reconciler(launcher, answer(state), now=clock, **kw)
     return r, launcher, r.reconcile([T])[0]
 
 
-def test_satisfied_starts_nothing():
-    _, l, res = run(ConditionState.SATISFIED)
+def test_not_wanted_starts_nothing():
+    _, l, res = run(False)
     assert res.outcome is Outcome.OK and not l.specs
 
 
-@pytest.mark.parametrize("state", [ConditionState.UNKNOWN, RuntimeError("boom")])
-def test_unknown_or_raising_condition_starts_nothing(state):
+@pytest.mark.parametrize("state", [RuntimeError("boom")])
+def test_a_check_that_raises_starts_nothing(state):
     _, l, res = run(state)
     assert res.outcome is Outcome.UNKNOWN and not l.specs
 
 
-def test_unsatisfied_starts_named_service():
-    _, l, res = run(ConditionState.UNSATISFIED)
+def test_wanted_starts_named_service():
+    _, l, res = run(True)
     assert res.outcome is Outcome.STARTED and l.specs[0].name == "proj" and l.specs[0].cwd == "/p"
 
 
 def test_failed_start_is_reported_not_raised():
     bad = Launcher(LaunchResult(LaunchMethod.FAILED, error="nope"))
-    _, _, res = run(ConditionState.UNSATISFIED, bad)
+    _, _, res = run(True, bad)
     assert res.outcome is Outcome.START_FAILED and not res.healthy and res.detail == "nope"
 
 
 def test_restart_cap_throttles_and_window_expires():
     t = [1000.0]
-    r, l, _ = run(ConditionState.UNSATISFIED, clock=lambda: t[0])
+    r, l, _ = run(True, clock=lambda: t[0])
     r.reconcile([T])
     assert r.reconcile([T])[0].outcome is Outcome.THROTTLED and len(l.specs) == 2
     t[0] += 101
@@ -67,5 +66,17 @@ def test_restart_cap_throttles_and_window_expires():
 
 
 def test_dry_run_starts_nothing():
-    _, l, res = run(ConditionState.UNSATISFIED, dry_run=True)
+    _, l, res = run(True, dry_run=True)
     assert res.outcome is Outcome.DRY_RUN and not l.specs
+
+
+@pytest.mark.parametrize("value", [None, "yes", 1, 0])
+def test_only_a_real_true_starts_a_target(value):
+    _, l, res = run(value)
+    assert res.outcome is Outcome.OK and not l.specs
+
+
+def test_already_running_service_is_ok_not_a_failure():
+    l = Launcher(LaunchResult(LaunchMethod.ALREADY_RUNNING, pid=9))
+    _, _, res = run(True, l)
+    assert res.outcome is Outcome.OK and res.healthy

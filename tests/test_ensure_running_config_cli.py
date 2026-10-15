@@ -3,9 +3,11 @@ from __future__ import annotations
 import pytest
 
 from commandport.domain import LaunchMethod, LaunchResult
-from ensure_running import ConditionState, Target
+import sys
+
+from ensure_running import Target
 from ensure_running import cli, config
-from ensure_running.conditions import ServiceRunning
+from ensure_running.conditions import CheckFailed, CommandCheck, service_not_running
 from ensure_running.config import ConfigError
 
 
@@ -54,12 +56,63 @@ def test_load_missing_file_is_a_config_error(tmp_path):
         config.load(tmp_path / "nope.toml")
 
 
-def test_service_running_condition_states(tmp_path):
+def test_default_check_starts_only_a_target_without_a_live_record(tmp_path):
     t = Target("svc", ("x",))
-    cond = ServiceRunning(tmp_path)
-    assert cond.check(t) is ConditionState.UNSATISFIED  # no record
+    should_run = service_not_running(tmp_path)
+    assert should_run(t) is True  # no record
     (tmp_path / "svc.json").write_text("not json")
-    assert cond.check(t) is ConditionState.UNKNOWN  # unreadable record is never "not running"
+    with pytest.raises(CheckFailed):  # an unreadable record is never "not running"
+        should_run(t)
+
+
+@pytest.mark.parametrize("code, expected", [(0, True), (1, False)])
+def test_command_check_exit_code_is_the_answer(code, expected):
+    t = Target("a", ("x",), check=(sys.executable, "-c", f"raise SystemExit({code})"))
+    assert CommandCheck()(t) is expected
+
+
+@pytest.mark.parametrize("check", [
+    (sys.executable, "-c", "raise SystemExit(2)"),
+    ("/definitely/not/a/command",),
+    (sys.executable, "-c", "import time; time.sleep(5)"),
+])
+def test_command_check_that_cannot_tell_raises(check):
+    with pytest.raises(CheckFailed):
+        CommandCheck(timeout_seconds=0.5)(Target("a", ("x",), check=check))
+
+
+def test_parse_check_as_string_or_list(tmp_path):
+    cfg = config.parse(toml(tmp_path, """
+[[target]]
+name = "a"
+argv = ["x"]
+check = "./wanted.sh --quiet"
+[[target]]
+name = "b"
+argv = ["x"]
+check = ["python", "-c", "pass"]
+"""))
+    assert cfg.targets[0].check == ("./wanted.sh", "--quiet") and cfg.targets[1].check[0] == "python"
+    with pytest.raises(ConfigError, match="check must be a string or a list"):
+        config.parse(toml(tmp_path, '[[target]]\nname="a"\nargv=["x"]\ncheck=3'))
+
+
+def test_cli_run_uses_a_targets_own_check(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "c.toml"
+    f.write_text(toml(tmp_path, f'''
+[[target]]
+name = "no"
+argv = ["x"]
+check = ["{sys.executable}", "-c", "raise SystemExit(1)"]
+[[target]]
+name = "unknown"
+argv = ["x"]
+check = ["{sys.executable}", "-c", "raise SystemExit(7)"]
+'''))
+    monkeypatch.setattr(cli, "_manager", lambda cfg: None)
+    assert cli.main(["run", "--config", str(f)]) == 1  # unknown is not healthy
+    out = capsys.readouterr().out
+    assert "no: ok" in out and "unknown: unknown" in out
 
 
 def test_cli_run_starts_missing_target_and_reports_exit_code(tmp_path, monkeypatch, capsys):

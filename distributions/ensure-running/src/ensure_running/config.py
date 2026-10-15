@@ -13,6 +13,7 @@
     name = "notes"                                 # unique; letters, digits, . _ -
     cwd = "~/notes"
     command = "claude remote-control"              # or: argv = ["claude", "remote-control"]
+    check = "./is-wanted.sh"                       # optional: exit 0 = start it, 1 = leave it, else unknown
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ from ensure_running.domain import Target
 
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _TOP = {"state_dir", "label", "interval_seconds", "pty", "defaults", "target"}
-_TARGET = {"name", "cwd", "argv", "command", "log_path", "max_starts", "window_seconds"}
+_TARGET = {"name", "cwd", "argv", "command", "check", "log_path", "max_starts", "window_seconds"}
 _DEFAULTS = {"max_starts", "window_seconds"}
 
 
@@ -59,6 +60,22 @@ def _number(value: object, what: str, *, minimum: float) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value < minimum:
         raise ConfigError(f"{what} must be a number >= {minimum:g}")
     return value
+
+
+def _argv(value: object, what: str) -> tuple[str, ...]:
+    """A command given as a shell-style string or as a list of strings."""
+    if isinstance(value, str):
+        try:
+            parts = shlex.split(value)
+        except ValueError as exc:
+            raise ConfigError(f"{what}: {exc}") from exc
+    elif isinstance(value, list) and all(isinstance(a, str) for a in value):
+        parts = list(value)
+    else:
+        raise ConfigError(f"{what} must be a string or a list of strings")
+    if not parts:
+        raise ConfigError(f"{what} must not be empty")
+    return tuple(parts)
 
 
 def parse(text: str, *, default_state_dir: Path | None = None) -> Config:
@@ -102,6 +119,9 @@ def parse(text: str, *, default_state_dir: Path | None = None) -> Config:
                 raise ConfigError(f"{where} ({name}): command: {exc}") from exc
             if not argv:
                 raise ConfigError(f"{where} ({name}): command must be a non-empty string")
+        check = None
+        if "check" in t:
+            check = _argv(t["check"], f"{where} ({name}): check")
         cwd = _path(t["cwd"], f"{where} ({name}): cwd") if "cwd" in t else None
         if cwd is not None and not cwd.is_dir():
             raise ConfigError(f"{where} ({name}): cwd is not a directory: {cwd}")
@@ -110,7 +130,7 @@ def parse(text: str, *, default_state_dir: Path | None = None) -> Config:
         merged = {**defaults, **{k: t[k] for k in _DEFAULTS if k in t}}
         try:
             targets.append(Target(
-                name, tuple(argv), cwd=str(cwd) if cwd else None, log_path=log,
+                name, tuple(argv), cwd=str(cwd) if cwd else None, log_path=log, check=check,
                 max_starts=int(_number(merged.get("max_starts", 5), f"{where}: max_starts", minimum=1)),
                 window_seconds=float(_number(merged.get("window_seconds", 3600), f"{where}: window_seconds",
                                              minimum=1)),
