@@ -6,7 +6,7 @@ from ensure_running.domain import StartOutcome, StartResult
 import sys
 
 from ensure_running import Target
-from ensure_running import cli, config
+from ensure_running import api, cli, config
 from ensure_running.conditions import CheckFailed, CommandCheck, service_not_running
 from ensure_running.lifecycle_check import LifecycleCheckRunner
 from ensure_running.config import ConfigError
@@ -110,7 +110,7 @@ name = "unknown"
 argv = ["x"]
 check = ["{sys.executable}", "-c", "raise SystemExit(7)"]
 '''))
-    monkeypatch.setattr(cli, "_manager", lambda cfg: None)
+    monkeypatch.setattr(api, "_manager", lambda cfg: None)
     assert cli.main(["run", "--config", str(f)]) == 1  # unknown is not healthy
     out = capsys.readouterr().out
     assert "no: ok" in out and "unknown: unknown" in out
@@ -127,8 +127,8 @@ def test_cli_run_starts_missing_target_and_reports_exit_code(tmp_path, monkeypat
             started.append(spec.name)
             return StartResult(StartOutcome.STARTED, pid=42)
 
-    monkeypatch.setattr(cli, "_ServiceStarter", Starter)
-    monkeypatch.setattr(cli, "_manager", lambda cfg: None)
+    monkeypatch.setattr(api, "_ServiceStarter", Starter)
+    monkeypatch.setattr(api, "_manager", lambda cfg: None)
     assert cli.main(["run", "--config", str(cfgfile)]) == 0
     assert started == ["a"] and "a: started pid=42" in capsys.readouterr().out
     assert (tmp_path / "state" / "history.json").exists()
@@ -137,7 +137,7 @@ def test_cli_run_starts_missing_target_and_reports_exit_code(tmp_path, monkeypat
 def test_cli_dry_run_starts_nothing_and_writes_no_history(tmp_path, monkeypatch):
     cfgfile = tmp_path / "c.toml"
     cfgfile.write_text(toml(tmp_path, '[[target]]\nname="a"\nargv=["x"]'))
-    monkeypatch.setattr(cli, "_manager", lambda cfg: None)
+    monkeypatch.setattr(api, "_manager", lambda cfg: None)
     assert cli.main(["run", "--config", str(cfgfile), "--dry-run"]) == 0
     assert not (tmp_path / "state" / "history.json").exists()
 
@@ -147,3 +147,32 @@ def test_cli_bad_config_exits_2(tmp_path, capsys):
     f.write_text("x = =")
     assert cli.main(["status", "--config", str(f)]) == 2
     assert "config error" in capsys.readouterr().err
+
+
+def test_run_once_is_callable_without_the_command_line(tmp_path):
+    cfg = config.parse(toml(tmp_path, '[[target]]\nname="a"\nargv=["x"]\n[[target]]\nname="b"\nargv=["y"]'))
+    started = []
+
+    class Starter:
+        def start(self, spec):
+            started.append(spec.name)
+            return StartResult(StartOutcome.STARTED, pid=len(started))
+
+    ticks = iter([1000.0, 1000.0, 1000.0, 1000.0])
+    results = api.run_once(cfg, starter=Starter(), should_run=lambda t: t.name == "a", now=lambda: next(ticks))
+    assert [(r.target, r.outcome.value) for r in results] == [("a", "started"), ("b", "ok")]
+    assert started == ["a"]
+    history = (cfg.state_dir / "history.json").read_text()
+    assert '"a": [1000.0]' in history
+
+
+def test_run_once_dry_run_starts_and_records_nothing(tmp_path):
+    cfg = config.parse(toml(tmp_path, '[[target]]\nname="a"\nargv=["x"]'))
+
+    class Starter:
+        def start(self, spec):
+            raise AssertionError("a dry run must not start anything")
+
+    results = api.run_once(cfg, starter=Starter(), should_run=lambda t: True, dry_run=True)
+    assert [r.outcome.value for r in results] == ["dry_run"]
+    assert not (cfg.state_dir / "history.json").exists()

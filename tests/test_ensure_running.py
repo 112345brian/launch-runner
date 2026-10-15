@@ -90,10 +90,10 @@ def test_in_progress_is_not_started_and_not_known_running():
 
 
 def test_every_proclaunch_launch_method_maps_to_a_start_outcome():
-    from ensure_running import cli
+    from ensure_running import api
     from proclaunch.domain import LaunchMethod
 
-    assert set(cli._OUTCOME) == set(LaunchMethod)
+    assert set(api._OUTCOME) == set(LaunchMethod)
 
 
 # ---- command checks run through a port ------------------------------------------------------------------

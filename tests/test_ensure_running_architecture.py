@@ -15,14 +15,14 @@ PKG = Path(__file__).resolve().parent.parent / "distributions" / "ensure-running
 DOMAIN = ["domain.py"]
 APPLICATION = ["reconciler.py"]
 ADAPTERS = ["conditions.py", "config.py", "history.py", "lifecycle_check.py"]
-ROOT = ["cli.py", "__main__.py"]
+ROOT = ["api.py", "cli.py", "__main__.py"]
 IO_MODULES = {"subprocess", "psutil", "socket", "urllib", "http", "tempfile", "shutil", "signal", "os",
               "time", "platform", "json", "ctypes", "multiprocessing", "asyncio", "requests", "tomllib",
               "sys", "proclaunch", "lifecycle_runner", "commandport"}
 INNER_OF = {  # module -> ring names it may NOT import
-    "domain": {"reconciler", "conditions", "config", "history", "lifecycle_check", "cli"},
-    "reconciler": {"conditions", "config", "history", "lifecycle_check", "cli"},
-    "adapter": {"reconciler", "cli"},
+    "domain": {"reconciler", "conditions", "config", "history", "lifecycle_check", "api", "cli"},
+    "reconciler": {"conditions", "config", "history", "lifecycle_check", "api", "cli"},
+    "adapter": {"reconciler", "api", "cli"},
 }
 
 

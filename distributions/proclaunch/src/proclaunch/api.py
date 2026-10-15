@@ -163,13 +163,13 @@ def terminate_process(pid: int, *, timeout: float = 5.0) -> bool:
 
 # The public surface of proclaunch. The operations enforce the service-management invariants; the rest are the
 # values they speak in, the ports a caller may implement to replace one collaborator, and ready-made
-# implementations of those ports. ``ServiceManager`` and ``Launcher`` are importable from ``proclaunch.services``
-# / ``proclaunch.launching`` for a caller assembling its own wiring; ``default_manager`` is the short way.
+# implementations of those ports. ``ServiceManager`` is exported for a caller assembling its own wiring (and as a type); ``default_manager``
+# is the short way.
 __all__ = [
     # operations
     "launch_background", "start_service", "stop_service", "service_status", "register_self",
     "wait_for_readiness", "terminate_process", "windowless_creationflags", "task_scheduler_supervisor",
-    "default_manager", "default_launcher",
+    "default_manager", "default_launcher", "ServiceManager",
     # test seams
     "use_launcher", "use_supervisor",
     # values
