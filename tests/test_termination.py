@@ -23,7 +23,7 @@ import time
 import psutil
 import pytest
 
-from commandport.domain import CaptureSpec, RunOutcome, RunSpec, StreamSpec
+from lifecycle_runner.domain import CaptureSpec, RunOutcome, RunSpec, StreamSpec
 from lifecycle_runner import api
 from lifecycle_runner.adapters import popen_spawner
 from proclaunch.api import terminate_process

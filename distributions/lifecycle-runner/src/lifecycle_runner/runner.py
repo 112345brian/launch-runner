@@ -7,7 +7,7 @@ rather than leaving it running, and nothing raises out of ``run``.
 """
 from __future__ import annotations
 
-from commandport.domain import RunOutcome, RunResult, RunSpec
+from lifecycle_runner.domain import RunOutcome, RunResult, RunSpec
 from lifecycle_runner.ports import ChildSpawner, Clock, RunningChild
 
 # After a kill, how long to wait for the exit code to become readable.

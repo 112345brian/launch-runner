@@ -1,11 +1,11 @@
 """Composition root: wires the real adapters into the runner, the capturer and the streamer.
 
 The only module that imports both the application and the adapters. Application code depends on the
-operation ports in ``commandport.ports`` (``CommandRunner``, ``CommandCapturer``, ``CommandStreamer``)
+operation ports in ``lifecycle_runner.ports`` (``CommandRunner``, ``CommandCapturer``, ``CommandStreamer``)
 and calls the module functions below, which delegate to the process-wide :class:`Commands` binding.
 
 ``use_commands`` swaps that binding for the duration of a ``with`` block: it is the one seam tests use,
-passing ``commandport.testing.FakeCommandRunner`` instead of patching ``subprocess``.
+passing ``lifecycle_runner.testing.FakeCommandRunner`` instead of patching ``subprocess``.
 """
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from lifecycle_runner.adapters.popen_capture import PopenCaptureSpawner, PopenSt
 from lifecycle_runner.adapters.popen_spawner import PopenSpawner
 from lifecycle_runner.adapters.system_clock import SystemClock
 from lifecycle_runner.capture import Capturer
-from commandport.domain import CaptureResult, CaptureSpec, RunResult, RunSpec, StreamSpec
-from commandport.ports import CommandCapturer, CommandRunner, CommandStreamer, LineStream
+from lifecycle_runner.domain import CaptureResult, CaptureSpec, RunResult, RunSpec, StreamSpec
+from lifecycle_runner.ports import CommandCapturer, CommandRunner, CommandStreamer, LineStream
 from lifecycle_runner.runner import Runner
 
 

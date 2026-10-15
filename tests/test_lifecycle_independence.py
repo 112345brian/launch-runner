@@ -1,4 +1,4 @@
-"""lifecycle_runner imports and runs with proclaunch absent: only commandport and psutil are on the path."""
+"""lifecycle_runner imports and runs with proclaunch absent: only lifecycle-runner (and psutil) is on the path."""
 from __future__ import annotations
 
 import os
@@ -18,7 +18,7 @@ class NoProclaunch(importlib.abc.MetaPathFinder):
             raise ImportError("proclaunch must not be needed: " + name)
 
 sys.meta_path.insert(0, NoProclaunch())
-from commandport.domain import CaptureSpec, RunOutcome, RunSpec
+from lifecycle_runner.domain import CaptureSpec, RunOutcome, RunSpec
 from lifecycle_runner import api
 
 done = api.capture(CaptureSpec((sys.executable, "-c", "print(42)"), timeout_seconds=30))
@@ -33,7 +33,7 @@ print("independent ok")
 def test_the_runner_imports_and_runs_with_proclaunch_blocked_and_off_the_path():
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(
-        str(SRC / name / "src") for name in ("commandport", "lifecycle-runner")
+        str(SRC / name / "src") for name in ("lifecycle-runner",)
     )
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     ran = subprocess.run(

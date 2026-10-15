@@ -13,7 +13,7 @@ import subprocess
 import threading
 from collections.abc import Iterator
 
-from commandport.domain import CaptureSpec, StreamSpec
+from lifecycle_runner.domain import CaptureSpec, StreamSpec
 from lifecycle_runner.adapters.process_group import own_group
 from lifecycle_runner.adapters.process_tree import terminate_tree
 from lifecycle_runner.adapters.windows import windowless_creationflags

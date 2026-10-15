@@ -8,9 +8,10 @@ application package.
 Same hexagonal layout as proclaunch (enforced by
 ``tests/test_lifecycle_runner_architecture.py`` and an import-linter contract):
 
-- ``domain`` -- ``RunSpec``, ``RunOutcome``, ``RunResult``; no I/O imports.
-- ``ports`` -- ``ChildSpawner`` / ``RunningChild`` / ``Clock``: what the runner
-  needs from the world.
+- ``domain`` -- ``RunSpec`` / ``CaptureSpec`` / ``StreamSpec``, ``RunOutcome`` and the results; no I/O imports.
+- ``ports`` -- ``ChildSpawner`` / ``RunningChild`` / ``Clock``: what the runner needs from the world; and the
+  operation ports (``CommandRunner`` / ``CommandCapturer`` / ``CommandStreamer`` / ``LineStream``) it provides.
+- ``testing`` -- ``FakeCommandRunner``, the in-memory implementation of the operation ports.
 - ``runner`` -- the behaviour (``Runner``): spawn, wait with a deadline, kill on
   timeout, report. Written against ports only.
 - ``adapters`` -- ``Popen`` + a log file, its own process-tree stop (``process_tree``), process group
@@ -56,7 +57,7 @@ Windows, an explicit outcome, UTF-8 text) and are what application code uses ins
 
 Application code depends on the operation ports (``CommandRunner`` / ``CommandCapturer`` /
 ``CommandStreamer`` in ``ports``); ``api.use_commands`` binds a fake for a test
-(``commandport.testing``). ``commandport.scan`` (``[tool.commandport]``) fails on a raw
+(``lifecycle_runner.testing``). ``commandport.scan`` (``[tool.commandport]``) fails on a raw
 ``subprocess`` call outside the adapters of this package and of proclaunch.
 
 Callers must consume results; ``tests/test_lifecycle_runner.py`` fails on a call

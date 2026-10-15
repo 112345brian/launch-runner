@@ -189,7 +189,7 @@ def test_the_sdist_is_self_contained_and_a_wheel_built_from_it_has_the_code(dist
 
 # ----------------------------------------------------------------------------- build + install smoke test
 def _pip_available() -> bool:
-    from commandport.domain import CaptureSpec
+    from lifecycle_runner.domain import CaptureSpec
     from lifecycle_runner.api import capture
 
     result = capture(CaptureSpec((sys.executable, "-c", "import pip, setuptools"), timeout_seconds=60))
@@ -197,7 +197,7 @@ def _pip_available() -> bool:
 
 
 def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
-    from commandport.domain import CaptureSpec
+    from lifecycle_runner.domain import CaptureSpec
     from lifecycle_runner.api import capture
 
     if not _pip_available():
@@ -254,7 +254,7 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
         "import commandport, lifecycle_runner, proclaunch\n"
         "for m in (commandport, lifecycle_runner, proclaunch):\n"
         "    assert m.__file__.startswith(sys.argv[1]), m.__file__\n"
-        "from commandport.domain import CaptureSpec\n"
+        "from lifecycle_runner.domain import CaptureSpec\n"
         "from commandport.scan import load_config, scan\n"
         "from lifecycle_runner.api import capture\n"
         "done = capture(CaptureSpec((sys.executable, '-c', 'print(42)'), timeout_seconds=30))\n"

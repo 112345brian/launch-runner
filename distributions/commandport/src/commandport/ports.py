@@ -1,66 +1,14 @@
-"""The operation ports: what application code may ask of "something that runs a command".
+"""The launch ports that proclaunch implements (still defined here until they move).
 
-This is the interface the inner rings depend on. A use case takes a ``CommandCapturer`` (or a
-``CommandStreamer`` / ``CommandRunner``) as an argument and never reaches for ``subprocess`` itself; an
-entrypoint hands it the real implementation (``lifecycle_runner.api``) and a test hands it
-``commandport.testing.FakeCommandRunner``.
-
-Nothing here imports a process, file or network module, so a domain, service or workflow module may import
-this package without becoming an I/O client.
+The command operation ports (``CommandCapturer`` / ``CommandStreamer`` / ``CommandRunner`` / ``LineStream``) live in
+``lifecycle_runner.ports`` now; their old names are forwarded.
 """
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import Protocol
 
-from commandport.domain import (
-    CaptureResult, CaptureSpec, EndResult, LaunchResult, ProcessSpec, RunResult, RunSpec, StreamSpec,
-)
-
-
-class LineStream(Protocol):
-    """A running command whose merged stdout/stderr is read line by line.
-
-    Iterating yields each line with its line ending (text mode, UTF-8, undecodable bytes replaced) until the
-    child closes its output or is killed. ``start_error`` is set (and iteration is empty) when the command
-    could not start."""
-
-    pid: int | None
-    start_error: str | None
-
-    def __iter__(self) -> Iterator[str]: ...
-
-    @property
-    def returncode(self) -> int | None:
-        """The exit code once known (after iteration finished or the child was killed)."""
-
-    @property
-    def timed_out(self) -> bool:
-        """The watchdog killed the child because it ran past ``timeout_seconds``."""
-
-    def kill(self) -> None:
-        """Stop the child and its descendants. Never raises."""
-
-    def close(self) -> None:
-        """Cancel the watchdog and make sure nothing is left running. Idempotent, never raises."""
-
-
-class CommandCapturer(Protocol):
-    """Run a short command and get everything it printed. Never raises; see ``CaptureResult``."""
-
-    def capture(self, spec: CaptureSpec) -> CaptureResult: ...
-
-
-class CommandStreamer(Protocol):
-    """Run a command and read its output as it is produced. Never raises; see ``LineStream.start_error``."""
-
-    def stream(self, spec: StreamSpec) -> LineStream: ...
-
-
-class CommandRunner(Protocol):
-    """Run a command to completion with a time limit; output goes to a log, is discarded, or is attached."""
-
-    def run(self, spec: RunSpec) -> RunResult: ...
+from commandport._moved import forward
+from commandport.domain import EndResult, LaunchResult, ProcessSpec
 
 
 class BackgroundLauncher(Protocol):
@@ -84,3 +32,10 @@ class Supervisor(Protocol):
 
     def end(self) -> EndResult:
         """Ask the supervisor to end what it started. Never raises."""
+
+
+forward(
+    globals(),
+    {name: "lifecycle_runner.ports" for name in ("LineStream", "CommandCapturer", "CommandStreamer", "CommandRunner")},
+    {"lifecycle_runner": "lifecycle-runner"},
+)

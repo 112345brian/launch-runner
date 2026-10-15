@@ -18,7 +18,7 @@ import subprocess
 import sys
 from typing import IO
 
-from commandport.domain import RunSpec
+from lifecycle_runner.domain import RunSpec
 from lifecycle_runner.adapters.process_group import own_group
 from lifecycle_runner.adapters.process_tree import terminate_tree
 from lifecycle_runner.adapters.windows import windowless_creationflags

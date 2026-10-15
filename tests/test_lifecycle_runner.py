@@ -17,7 +17,7 @@ import pytest
 
 from lifecycle_runner import __main__ as cli
 from lifecycle_runner import api
-from commandport.domain import RunOutcome, RunResult, RunSpec
+from lifecycle_runner.domain import RunOutcome, RunResult, RunSpec
 from lifecycle_runner.runner import Runner
 
 REPO = Path(__file__).resolve().parent.parent
