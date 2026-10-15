@@ -42,7 +42,7 @@ Repository = "https://github.com/112345brian/launch-runner"
 Issues = "https://github.com/112345brian/launch-runner/issues"
 
 [tool.setuptools]
-packages = ["lifecycle_runner", "lifecycle_runner.adapters"]
+packages = ["lifecycle_runner", "lifecycle_runner.adapters", "lifecycle_runner._vendor"]
 
 [tool.setuptools.package-dir]
 "" = "src"

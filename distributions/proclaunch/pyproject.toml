@@ -41,7 +41,7 @@ Repository = "https://github.com/112345brian/launch-runner"
 Issues = "https://github.com/112345brian/launch-runner/issues"
 
 [tool.setuptools]
-packages = ["proclaunch", "proclaunch.adapters"]
+packages = ["proclaunch", "proclaunch.adapters", "proclaunch._vendor"]
 
 [tool.setuptools.package-dir]
 "" = "src"
