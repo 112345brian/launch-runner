@@ -16,11 +16,9 @@ from proclaunch.adapters.subprocess_spawner import SubprocessSpawner
 from proclaunch.adapters.system_clock import SystemClock
 from proclaunch.adapters.task_scheduler import TaskSchedulerSupervisor
 from proclaunch.adapters.windows import windowless_flags
-from commandport.domain import LaunchResult, ProcessSpec
-from proclaunch.domain import ServiceStatus, StopResult, WaitResult
+from proclaunch.domain import LaunchResult, ProcessSpec, ServiceStatus, StopResult, WaitResult
 from proclaunch.launching import Launcher
-from commandport.ports import Supervisor
-from proclaunch.ports import Probe
+from proclaunch.ports import Probe, Supervisor
 from proclaunch.readiness import wait_for_readiness as _wait_for_readiness
 from proclaunch.services import ServiceManager
 
@@ -45,7 +43,7 @@ def task_scheduler_supervisor(task_name: str) -> Supervisor:
 @contextlib.contextmanager
 def use_supervisor(factory) -> Iterator[None]:
     """Bind *factory* (``task_name -> Supervisor``) for the ``with`` block: the seam tests use
-    (``commandport.testing.FakeSupervisors``) so a test can never end a real scheduled task."""
+    (``proclaunch.testing.FakeSupervisors``) so a test can never end a real scheduled task."""
     global _supervisor_factory_override
     previous, _supervisor_factory_override = _supervisor_factory_override, factory
     try:
@@ -81,7 +79,7 @@ def launch_background(spec: ProcessSpec) -> LaunchResult:
 @contextlib.contextmanager
 def use_launcher(launcher) -> Iterator[None]:
     """Bind *launcher* (anything with ``launch(spec) -> LaunchResult``) for the ``with`` block: the seam tests
-    use (``commandport.testing.FakeLauncher``) instead of patching ``subprocess.Popen``."""
+    use (``proclaunch.testing.FakeLauncher``) instead of patching ``subprocess.Popen``."""
     global _launcher_override
     previous, _launcher_override = _launcher_override, launcher
     try:

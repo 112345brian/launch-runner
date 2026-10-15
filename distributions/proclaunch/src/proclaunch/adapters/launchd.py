@@ -13,7 +13,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from commandport.domain import EndResult, ProcessSpec
+from proclaunch.domain import EndResult, ProcessSpec
 
 _TIMEOUT = 20
 

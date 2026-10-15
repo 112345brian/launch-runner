@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from commandport.domain import ProcessSpec
+from proclaunch.domain import ProcessSpec
 from proclaunch.adapters.launchd import LaunchdSupervisor
 from proclaunch.adapters.pty_spawner import PtySpawner
 

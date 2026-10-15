@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 
 from proclaunch.adapters.windows import is_windows, windowless_flags
-from commandport.domain import EndResult, ProcessSpec
+from proclaunch.domain import EndResult, ProcessSpec
 
 _SCHTASKS_TIMEOUT = 15
 

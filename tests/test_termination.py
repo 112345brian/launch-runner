@@ -184,7 +184,7 @@ def test_terminate_process_does_not_report_success_over_a_session_escaper():
 
 
 def test_a_pty_child_that_ignores_termination_is_not_reported_stopped_while_alive(tmp_path):
-    from commandport.domain import ProcessSpec
+    from proclaunch.domain import ProcessSpec
     from proclaunch.adapters.pty_spawner import PtySpawner
 
     marker = tmp_path / "child.pid"

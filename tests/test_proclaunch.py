@@ -14,7 +14,7 @@ import pytest
 from proclaunch.adapters import windows
 from proclaunch.adapters.subprocess_spawner import SubprocessSpawner
 from proclaunch.adapters.task_scheduler import TaskSchedulerSupervisor
-from commandport.domain import EndResult, LaunchMethod, ProcessSpec
+from proclaunch.domain import EndResult, LaunchMethod, ProcessSpec
 from proclaunch.launching import Launcher
 
 REPO = Path(__file__).resolve().parent.parent

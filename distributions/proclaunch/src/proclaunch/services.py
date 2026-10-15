@@ -10,8 +10,10 @@ preserved and reported, never treated as "stopped".
 """
 from __future__ import annotations
 
-from commandport.domain import LaunchMethod, LaunchResult, ProcessSpec
-from proclaunch.domain import ProcessIdentity, RecordUnreadable, ServiceRecord, ServiceStatus, StopOutcome, StopResult
+from proclaunch.domain import (
+    LaunchMethod, LaunchResult, ProcessIdentity, ProcessSpec, RecordUnreadable, ServiceRecord, ServiceStatus,
+    StopOutcome, StopResult,
+)
 from proclaunch.launching import Launcher
 from proclaunch.ports import Clock, ProcessInspector, RecordStore
 

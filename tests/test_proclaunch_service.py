@@ -17,7 +17,7 @@ import pytest
 from proclaunch import api
 from proclaunch.adapters.json_record_store import JsonFileRecordStore
 from proclaunch.adapters.probes import CallableProbe
-from commandport.domain import LaunchMethod, ProcessSpec
+from proclaunch.domain import LaunchMethod, ProcessSpec
 from proclaunch.domain import ProcessIdentity, RecordUnreadable, ServiceRecord, StopOutcome
 from proclaunch.launching import Launcher
 from proclaunch.readiness import wait_for_readiness

@@ -1,24 +1,23 @@
 """Start and stop long-running local background processes with a contract.
 
-A leaf library: standard library plus ``psutil``, and the pure ``commandport`` contract it
-implements; it imports nothing from ``jobsearch``, ``tracker`` or any other application package
-(``tach.toml`` puts it on the ``libraries`` layer with ``depends_on = ["commandport"]``), so it can be
-lifted into its own repository unchanged.
+A leaf library: standard library plus ``psutil``. It imports nothing from any other library of this family or
+from any application package, so it can be lifted into its own repository unchanged.
 
-The launch *contract* lives in ``commandport`` -- ``ProcessSpec``, ``LaunchResult`` / ``LaunchMethod``,
-``EndResult`` and the ``BackgroundLauncher`` / ``Supervisor`` ports -- so an application's core can
-depend on "start a background process" without importing anything that does I/O. This package is the
-implementation (``Launcher`` is a ``BackgroundLauncher``) plus what only an implementation can hold:
-service records with process identity, readiness probes and the adapters.
+The launch vocabulary is its own: ``ProcessSpec``, ``LaunchResult`` / ``LaunchMethod``, ``EndResult`` in
+``domain`` and the ``BackgroundLauncher`` / ``Supervisor`` ports in ``ports``, importable without importing
+anything that does I/O. A consumer that wants its own vocabulary defines a narrower local protocol (for
+example "start this named service") and lets ``ServiceManager`` satisfy it. Beyond the contract this package
+holds what only an implementation can: service records with process identity, readiness probes and the
+adapters.
 
 Hexagonal layout (enforced by ``tests/test_proclaunch_architecture.py`` and an
 import-linter contract):
 
-- ``domain`` -- values and rules local to this package (``ProcessIdentity``, ``ServiceRecord``,
-  the stop/status/wait results); no I/O imports. The launch types are ``commandport.domain``'s.
-- ``ports`` -- the driven protocols the behaviour needs: ``ProcessSpawner``,
-  ``ProcessInspector``, ``RecordStore``, ``Clock``, ``Probe``. (``Supervisor`` and
-  ``BackgroundLauncher`` are ``commandport.ports``'.)
+- ``domain`` -- values and rules: the launch types (``ProcessSpec``, ``LaunchResult``, ``LaunchMethod``,
+  ``EndResult``) and ``ProcessIdentity``, ``ServiceRecord``, the stop/status/wait results; no I/O imports.
+- ``ports`` -- the driven protocols the behaviour needs: ``ProcessSpawner``, ``ProcessInspector``,
+  ``RecordStore``, ``Clock``, ``Probe``; and the ones it provides: ``BackgroundLauncher``, ``Supervisor``.
+- ``testing`` -- ``FakeLauncher`` and ``FakeSupervisors``, in-memory implementations of the launch ports.
 - ``launching`` / ``services`` / ``readiness`` -- the behaviour (``Launcher``,
   ``ServiceManager``, ``wait_for_readiness``), written against ports only.
 - ``adapters`` -- the real world behind each port: subprocess, psutil, JSON files,

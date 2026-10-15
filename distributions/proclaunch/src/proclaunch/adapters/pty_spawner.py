@@ -9,7 +9,7 @@ from __future__ import annotations
 import dataclasses
 import sys
 
-from commandport.domain import ProcessSpec
+from proclaunch.domain import ProcessSpec
 from proclaunch.adapters.subprocess_spawner import SubprocessSpawner
 from proclaunch.adapters.windows import is_windows
 
