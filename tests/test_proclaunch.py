@@ -205,7 +205,7 @@ def test_a_process_that_cannot_be_inspected_is_assumed_alive_not_raised():
         def status(self):
             raise psutil.AccessDenied(1)
 
-    assert psutil_inspector._alive(Opaque()) is True
+    assert psutil_inspector.proctree.alive(Opaque()) is True
 
 
 def test_the_launchd_supervisor_does_not_resolve_the_home_directory_at_import(monkeypatch):

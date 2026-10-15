@@ -82,3 +82,10 @@ name = "ensure_running adapters must not import the reconciler or the compositio
 type = "forbidden"
 source_modules = ["ensure_running.conditions", "ensure_running.config", "ensure_running.history", "ensure_running.lifecycle_check"]
 forbidden_modules = ["ensure_running.reconciler", "ensure_running.api", "ensure_running.cli"]
+
+[[tool.importlinter.contracts]]
+name = "vendored helpers import nothing from the family"
+type = "forbidden"
+source_modules = ["lifecycle_runner._vendor", "proclaunch._vendor"]
+forbidden_modules = ["commandport", "proclaunch", "lifecycle_runner", "ensure_running"]
+allow_indirect_imports = true

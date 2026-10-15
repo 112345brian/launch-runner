@@ -25,6 +25,8 @@ jobs:
           -e distributions/ensure-running
       - name: Lint
         run: ruff check .
+      - name: Vendored copies match their source
+        run: python tools/sync_vendored.py --check
       - name: Import contracts
         run: lint-imports
       - name: No raw process calls outside the adapters

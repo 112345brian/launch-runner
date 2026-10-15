@@ -12,6 +12,7 @@ import time
 
 import psutil
 
+from proclaunch._vendor import proctree
 from proclaunch.adapters.atomic_files import ON_WINDOWS
 from proclaunch.domain import ProcessIdentity
 
@@ -55,17 +56,6 @@ def _same_process(proc: psutil.Process, identity: ProcessIdentity) -> bool:
     return abs(proc.create_time() - identity.create_time) < 1e-3
 
 
-def _alive(proc: psutil.Process) -> bool:
-    """Running and not a zombie. A process that may not be inspected (``AccessDenied``) is assumed alive: it is
-    not proven gone, so a stop reports it rather than raising."""
-    try:
-        return proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
-    except psutil.NoSuchProcess:
-        return False
-    except psutil.Error:
-        return True
-
-
 def _process_group_exists(process_group: int) -> bool:
     for process in psutil.process_iter(["pid", "status"]):
         if process.info["status"] == psutil.STATUS_ZOMBIE:
@@ -105,62 +95,20 @@ def _terminate_posix_group(proc: psutil.Process, process_group: int, timeout: fl
     return True
 
 
-def _signal(process: psutil.Process, kill: bool) -> None:
-    """Terminate or kill *process*. A process that is gone is fine; one we may not signal is left alive and
-    reported by the caller's survivor check, never raised."""
-    try:
-        process.kill() if kill else process.terminate()
-    except psutil.Error:
-        pass
-
-
 def _terminate_tree(proc: psutil.Process, timeout: float) -> bool:
     try:
         processes = [*proc.children(recursive=True), proc]
     except psutil.NoSuchProcess:
         return True
-    for process in reversed(processes):
-        _signal(process, kill=False)
-    _, alive = psutil.wait_procs(processes, timeout=timeout)
-    for process in alive:
-        _signal(process, kill=True)
-    _, alive = psutil.wait_procs(alive, timeout=1)
-    return not alive
-
-
-def _descendants(proc: psutil.Process) -> list[psutil.Process]:
-    """The descendants that can be found *now*. Taken before anything is signalled: once the leader dies they are
-    re-parented and can no longer be found by walking down from it. A ``psutil.Process`` keeps the creation time
-    it was built with, so a reused pid is never mistaken for one of these."""
-    try:
-        return proc.children(recursive=True)
-    except psutil.Error:
-        return []
-
-
-def _sweep(known: list[psutil.Process], timeout: float) -> bool:
-    """Stop whatever is still alive of *known*, a snapshot of descendants taken before the leader was signalled.
-
-    A group or tree kill reports on the group or tree it was aimed at; a descendant that left it (its own
-    session, as the child of a pty holder is) is only caught here. True when none of *known* remains."""
-    left = [p for p in known if _alive(p)]
-    if not left:
-        return True
-    for process in left:
-        _signal(process, kill=False)
-    _, alive = psutil.wait_procs(left, timeout=timeout)
-    for process in alive:
-        _signal(process, kill=True)
-    _, alive = psutil.wait_procs(alive, timeout=1)
-    return not any(_alive(p) for p in alive)
+    return proctree.stop_processes(processes, timeout)
 
 
 def _terminate(proc: psutil.Process, timeout: float) -> bool:
     """Stop *proc* and its descendants; True only when none of what could be found beforehand is left."""
     deadline = time.monotonic() + timeout
-    known = _descendants(proc)
+    known = proctree.descendants(proc.pid)
     stopped = _terminate_leader(proc, timeout)
-    swept = _sweep(known, max(0.5, deadline - time.monotonic()))
+    swept = proctree.stop_processes(known, max(0.5, deadline - time.monotonic()))
     return stopped and swept
 
 
@@ -188,7 +136,7 @@ class PsutilInspector:
     def _unique(self, identity: ProcessIdentity) -> psutil.Process | None:
         try:
             proc = psutil.Process(identity.pid)
-            if _same_process(proc, identity) and _alive(proc):
+            if _same_process(proc, identity) and proctree.alive(proc):
                 return proc
         except psutil.NoSuchProcess:
             pass

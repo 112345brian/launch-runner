@@ -215,6 +215,12 @@ def test_a_process_that_cannot_be_signalled_is_reported_as_surviving_not_raised(
     class Denied:
         pid = 4242
 
+        def is_running(self):
+            return True
+
+        def status(self):
+            return psutil.STATUS_SLEEPING
+
         def terminate(self):
             raise psutil.AccessDenied(self.pid)
 
