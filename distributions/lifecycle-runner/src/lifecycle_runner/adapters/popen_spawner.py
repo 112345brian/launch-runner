@@ -19,6 +19,7 @@ import sys
 from typing import IO
 
 from commandport.domain import RunSpec
+from lifecycle_runner.adapters.process_group import own_group
 from proclaunch.api import terminate_process, windowless_creationflags
 
 _TERMINATE_TIMEOUT_SECONDS = 5.0
@@ -93,7 +94,7 @@ class PopenSpawner:
             proc = subprocess.Popen(
                 argv, cwd=spec.cwd, env=env,
                 stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
-                creationflags=windowless_creationflags(),
+                creationflags=windowless_creationflags(), **own_group(),
             )
         except BaseException:
             if log is not None:

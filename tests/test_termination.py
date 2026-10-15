@@ -1,7 +1,7 @@
 """Termination guarantees, against real processes (POSIX).
 
-Two defects found by the architecture audit are pinned here as ``xfail(strict=True)`` so the suite stays green
-while they exist; the fix commit removes the markers:
+Two defects found by the architecture audit were pinned here as ``xfail(strict=True)``; each fix commit removed
+its markers:
 
 1. ``lifecycle_runner`` reported ``TIMED_OUT`` with ``error=None`` while a descendant that had been orphaned
    (re-parented) before the deadline kept running: its children shared the caller's process group, so the
@@ -80,7 +80,6 @@ def _reap(*pids: int) -> None:
 # ---- defect 1: an orphaned descendant outlives a timeout ------------------
 
 
-@pytest.mark.xfail(strict=True, reason="lifecycle children share the caller's process group; orphans are missed")
 @pytest.mark.parametrize("operation", ["run", "capture", "stream"])
 def test_a_timeout_kills_a_descendant_orphaned_before_the_deadline(operation, tmp_path):
     orphan = None
@@ -120,6 +119,27 @@ def test_a_timeout_leaves_a_bystander_in_the_callers_group_alone(tmp_path):
         bystander.wait()
 
 
+def test_ctrl_c_while_streaming_kills_the_child_that_the_terminal_no_longer_signals():
+    stream = api.stream(StreamSpec((sys.executable, "-c", _SLEEP)))
+    pid, real_stdout = stream.pid, stream._proc.stdout
+
+    class Interrupting:
+        def __iter__(self):
+            raise KeyboardInterrupt
+
+        def close(self):
+            real_stdout.close()
+
+    stream._proc.stdout = Interrupting()
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            next(iter(stream))
+        assert _gone(pid), "the streamed child survived Ctrl-C"
+    finally:
+        _reap(pid)
+        stream.close()
+
+
 def _popen_kwargs(monkeypatch, spec: RunSpec, *, console: bool) -> dict:
     seen: dict = {}
 
@@ -141,7 +161,6 @@ def test_a_console_attached_run_stays_in_the_callers_process_group(monkeypatch):
     assert "process_group" not in kwargs and not kwargs.get("start_new_session")
 
 
-@pytest.mark.xfail(strict=True, reason="a detached run is not given a process group of its own yet")
 def test_a_detached_run_gets_its_own_process_group_in_the_callers_session(monkeypatch):
     kwargs = _popen_kwargs(monkeypatch, RunSpec((sys.executable, "-c", "pass")), console=False)
     assert kwargs.get("process_group") == 0

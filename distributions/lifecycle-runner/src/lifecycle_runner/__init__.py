@@ -32,6 +32,12 @@ The contract:
   killed; ``python -m lifecycle_runner`` sets ``PYTHONUNBUFFERED=1`` so a Python
   child does not. Other children are on their own.
 - A foreground child never opens a console window on Windows.
+- On POSIX a detached child (everything except ``RunSpec(inherit_stdio=True)`` with a console) leads its own
+  process group, in the caller's session, so a timeout signals the whole group: a descendant that was orphaned
+  before the deadline is stopped too. A descendant that starts its own session or group escapes the group and
+  is stopped only while it is still a descendant of the child. A console-attached child stays in the
+  caller's group (it needs the terminal's job control) and is stopped by walking its descendants, which
+  cannot see an orphan. Windows has no process groups of this kind; see ``adapters/process_group.py``.
 - Ctrl-C / ``KeyboardInterrupt`` while waiting kills the child, then propagates.
 
 Two more operations share the same guarantees (never raises, never opens a console window on
