@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from ensure_running.domain import StartOutcome, StartResult
+import json
 import sys
 
 from ensure_running import Target
@@ -12,8 +13,13 @@ from ensure_running.lifecycle_check import LifecycleCheckRunner
 from ensure_running.config import ConfigError
 
 
+def q(value) -> str:
+    """A TOML string for *value*: JSON quoting is valid TOML and escapes the backslashes of a Windows path."""
+    return json.dumps(str(value))
+
+
 def toml(tmp_path, body=""):
-    return f'state_dir = "{tmp_path}/state"\n{body}'
+    return f"state_dir = {q(tmp_path / 'state')}\n{body}"
 
 
 def test_parse_command_string_argv_defaults_and_log_path(tmp_path):
@@ -22,7 +28,7 @@ def test_parse_command_string_argv_defaults_and_log_path(tmp_path):
 max_starts = 3
 [[target]]
 name = "notes"
-cwd = "{tmp_path}"
+cwd = {q(tmp_path)}
 command = "claude remote-control --name 'my notes'"
 [[target]]
 name = "b"
@@ -104,11 +110,11 @@ def test_cli_run_uses_a_targets_own_check(tmp_path, monkeypatch, capsys):
 [[target]]
 name = "no"
 argv = ["x"]
-check = ["{sys.executable}", "-c", "raise SystemExit(1)"]
+check = [{q(sys.executable)}, "-c", "raise SystemExit(1)"]
 [[target]]
 name = "unknown"
 argv = ["x"]
-check = ["{sys.executable}", "-c", "raise SystemExit(7)"]
+check = [{q(sys.executable)}, "-c", "raise SystemExit(7)"]
 '''))
     monkeypatch.setattr(api, "_manager", lambda cfg: None)
     assert cli.main(["run", "--config", str(f)]) == 1  # unknown is not healthy

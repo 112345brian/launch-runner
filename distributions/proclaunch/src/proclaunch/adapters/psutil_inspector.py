@@ -16,7 +16,11 @@ from proclaunch._vendor import proctree
 from proclaunch.adapters.atomic_files import ON_WINDOWS
 from proclaunch.domain import ProcessIdentity
 
-_SINCE_TOLERANCE = 0.25
+# How much earlier than the launch a matching process may *appear* to have started. Process creation time is
+# derived from the boot time, which Linux reports in whole seconds, so it can be off by almost a second against
+# the wall clock; a tight tolerance rejects the very process that was just started. A wrong match needs the same
+# argv started within this window, and an ambiguous match is refused, never guessed.
+_SINCE_TOLERANCE = 1.5
 
 
 def same_executable(found: str, wanted: str) -> bool:
