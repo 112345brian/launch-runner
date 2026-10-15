@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from proclaunch.adapters.json_record_store import JsonFileRecordStore
+from proclaunch.adapters.launchd import LaunchdSupervisor
 from proclaunch.adapters.probes import CallableProbe, HttpProbe, TcpProbe
 from proclaunch.adapters.psutil_inspector import PsutilInspector
 from proclaunch.adapters.pty_spawner import PtySpawner
@@ -177,5 +178,5 @@ __all__ = [
     # ports a caller may implement
     "ProcessSpawner", "Probe", "Supervisor", "BackgroundLauncher", "ProcessInspector", "RecordStore", "Clock",
     # ready-made implementations
-    "SubprocessSpawner", "PtySpawner", "HttpProbe", "TcpProbe", "CallableProbe",
+    "SubprocessSpawner", "PtySpawner", "HttpProbe", "TcpProbe", "CallableProbe", "LaunchdSupervisor",
 ]
