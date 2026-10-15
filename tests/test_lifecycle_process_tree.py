@@ -122,8 +122,8 @@ def test_a_survivor_that_cannot_be_stopped_is_reported_not_hidden(monkeypatch, p
 
     child = _spawn(_SLEEP, own_group=True)
     procs.append(child.pid)
-    monkeypatch.setattr(process_tree, "_descendants", lambda pid: [Stubborn()])
-    monkeypatch.setattr(process_tree.psutil, "wait_procs", lambda items, timeout=None: ([], list(items)))
+    monkeypatch.setattr(process_tree.proctree, "descendants", lambda pid: [Stubborn()])
+    monkeypatch.setattr(process_tree.proctree.psutil, "wait_procs", lambda items, timeout=None: ([], list(items)))
     assert terminate_tree(child, own_group=True, timeout=0.2) is False
     assert child.poll() is not None, "the child itself is still stopped"
 
@@ -148,6 +148,6 @@ def test_a_reaped_leader_is_not_followed_by_a_signal_to_its_old_group(monkeypatc
     child = _spawn("pass", own_group=True)
     child.wait(timeout=10)
     called = []
-    monkeypatch.setattr(process_tree, "_stop_group", lambda pgid, timeout: called.append(pgid) or True)
+    monkeypatch.setattr(process_tree.proctree, "stop_group", lambda pgid, timeout: called.append(pgid) or True)
     assert terminate_tree(child, own_group=True) is True
     assert called == [], "the group id of a reaped leader may have been recycled"
