@@ -33,7 +33,8 @@ class ProcessInspector(Protocol):
 
     def terminate(self, identity: ProcessIdentity, timeout: float) -> bool:
         """Stop the process and its descendants, gracefully then by force, only
-        if *identity* still matches. True when nothing of it remains."""
+        if *identity* still matches. True when nothing of it, its group and the
+        descendants found before it was signalled remains; False when any survived."""
 
     def find_started(self, argv: tuple[str, ...], since: float) -> ProcessIdentity | None:
         """The one live process that looks like *argv* (same arguments, equivalent

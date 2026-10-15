@@ -121,7 +121,13 @@ def windowless_creationflags() -> int:
 def terminate_process(pid: int, *, timeout: float = 5.0) -> bool:
     """Stop *pid* and its descendants, gracefully then by force.
 
-    True when nothing of it remains (including when it was already gone)."""
+    True when nothing remains of *pid*, its process group (POSIX) and the descendants that could be found
+    before it was signalled (including when it was already gone). False when any of those survived, or could not
+    be signalled. A descendant that was already orphaned, or that starts a new session after the snapshot, is
+    not known and is not covered; there is no Windows job object here yet.
+
+    Acts on whichever process currently owns *pid*: pass the pid of a child you own, or use a recorded
+    identity (``ServiceManager.stop``) when the pid may have been reused."""
     inspector = PsutilInspector()
     identity = inspector.identify(pid)
     if identity is None:

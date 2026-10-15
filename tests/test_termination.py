@@ -1,7 +1,7 @@
 """Termination guarantees, against real processes (POSIX).
 
 Two defects found by the architecture audit were pinned here as ``xfail(strict=True)``; each fix commit removed
-its markers:
+its markers (the group fix in lifecycle_runner, the survivor sweep in proclaunch):
 
 1. ``lifecycle_runner`` reported ``TIMED_OUT`` with ``error=None`` while a descendant that had been orphaned
    (re-parented) before the deadline kept running: its children shared the caller's process group, so the
@@ -170,7 +170,6 @@ def test_a_detached_run_gets_its_own_process_group_in_the_callers_session(monkey
 # ---- defect 2: success reported while a known child survives --------------
 
 
-@pytest.mark.xfail(strict=True, reason="termination success ignores descendants outside the leader's group")
 def test_terminate_process_does_not_report_success_over_a_session_escaper():
     root = subprocess.Popen(
         [sys.executable, "-c", _ESCAPER], stdout=subprocess.PIPE, text=True, start_new_session=True,
@@ -184,7 +183,6 @@ def test_terminate_process_does_not_report_success_over_a_session_escaper():
         _reap(escaper, root.pid)
 
 
-@pytest.mark.xfail(strict=True, reason="a pty child is its own session leader, outside the holder's group")
 def test_a_pty_child_that_ignores_termination_is_not_reported_stopped_while_alive(tmp_path):
     from commandport.domain import ProcessSpec
     from proclaunch.adapters.pty_spawner import PtySpawner
@@ -207,3 +205,21 @@ def test_a_pty_child_that_ignores_termination_is_not_reported_stopped_while_aliv
         assert not gone or _gone(child, 2.0), "terminate_process returned True while the pty child lived"
     finally:
         _reap(child, holder)
+
+
+def test_a_process_that_cannot_be_signalled_is_reported_as_surviving_not_raised(monkeypatch):
+    from proclaunch.adapters import psutil_inspector
+
+    class Denied:
+        pid = 4242
+
+        def terminate(self):
+            raise psutil.AccessDenied(self.pid)
+
+        kill = terminate
+
+        def children(self, recursive=False):
+            return []
+
+    monkeypatch.setattr(psutil, "wait_procs", lambda procs, timeout=None: ([], list(procs)))
+    assert psutil_inspector._terminate_tree(Denied(), 0.1) is False

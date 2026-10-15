@@ -101,27 +101,66 @@ def _terminate_posix_group(proc: psutil.Process, process_group: int, timeout: fl
     return True
 
 
+def _signal(process: psutil.Process, kill: bool) -> None:
+    """Terminate or kill *process*. A process that is gone is fine; one we may not signal is left alive and
+    reported by the caller's survivor check, never raised."""
+    try:
+        process.kill() if kill else process.terminate()
+    except psutil.Error:
+        pass
+
+
 def _terminate_tree(proc: psutil.Process, timeout: float) -> bool:
     try:
         processes = [*proc.children(recursive=True), proc]
     except psutil.NoSuchProcess:
         return True
     for process in reversed(processes):
-        try:
-            process.terminate()
-        except psutil.NoSuchProcess:
-            pass
+        _signal(process, kill=False)
     _, alive = psutil.wait_procs(processes, timeout=timeout)
     for process in alive:
-        try:
-            process.kill()
-        except psutil.NoSuchProcess:
-            pass
+        _signal(process, kill=True)
     _, alive = psutil.wait_procs(alive, timeout=1)
     return not alive
 
 
+def _descendants(proc: psutil.Process) -> list[psutil.Process]:
+    """The descendants that can be found *now*. Taken before anything is signalled: once the leader dies they are
+    re-parented and can no longer be found by walking down from it. A ``psutil.Process`` keeps the creation time
+    it was built with, so a reused pid is never mistaken for one of these."""
+    try:
+        return proc.children(recursive=True)
+    except psutil.Error:
+        return []
+
+
+def _sweep(known: list[psutil.Process], timeout: float) -> bool:
+    """Stop whatever is still alive of *known*, a snapshot of descendants taken before the leader was signalled.
+
+    A group or tree kill reports on the group or tree it was aimed at; a descendant that left it (its own
+    session, as the child of a pty holder is) is only caught here. True when none of *known* remains."""
+    left = [p for p in known if _alive(p)]
+    if not left:
+        return True
+    for process in left:
+        _signal(process, kill=False)
+    _, alive = psutil.wait_procs(left, timeout=timeout)
+    for process in alive:
+        _signal(process, kill=True)
+    _, alive = psutil.wait_procs(alive, timeout=1)
+    return not any(_alive(p) for p in alive)
+
+
 def _terminate(proc: psutil.Process, timeout: float) -> bool:
+    """Stop *proc* and its descendants; True only when none of what could be found beforehand is left."""
+    deadline = time.monotonic() + timeout
+    known = _descendants(proc)
+    stopped = _terminate_leader(proc, timeout)
+    swept = _sweep(known, max(0.5, deadline - time.monotonic()))
+    return stopped and swept
+
+
+def _terminate_leader(proc: psutil.Process, timeout: float) -> bool:
     if not ON_WINDOWS:
         try:
             group = os.getpgid(proc.pid)
