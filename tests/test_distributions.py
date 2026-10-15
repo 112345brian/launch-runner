@@ -1,7 +1,10 @@
-"""The three libraries are published as separate distributions plus a meta-package (``distributions/``).
+"""The libraries are published as separate distributions plus a meta-package (``distributions/``).
 
-This is the release gate: versions move together, the dependencies a distribution declares are exactly the ones
-its code imports, the meta-package pins the set, and the wheels build and work from a clean install target.
+This is the release gate. Each distribution carries its own version, which must match its package. The
+capability libraries do not depend on one another (each installs alone); a library built on others declares
+bounded ranges that contain the versions in this repository; the meta-package pins the exact tested set. The
+dependencies a distribution declares are exactly the ones its code imports, and the wheels build and work from
+a clean install target.
 """
 from __future__ import annotations
 
@@ -22,6 +25,10 @@ LIBRARIES = {
     "proclaunch": ("proclaunch", DISTRIBUTIONS / "proclaunch" / "src" / "proclaunch"),
     "lifecycle-runner": ("lifecycle_runner", DISTRIBUTIONS / "lifecycle-runner" / "src" / "lifecycle_runner"),
 }
+# the libraries that provide one capability each and must install alone: no dependency on any sibling
+CAPABILITY_LIBRARIES = ("commandport", "proclaunch", "lifecycle-runner")
+# what the meta-package installs, at exactly the versions tested together
+META_MEMBERS = CAPABILITY_LIBRARIES
 # the import name of a third-party dependency -> its distribution name
 THIRD_PARTY = {"psutil": "psutil"}
 OWN_IMPORTS = {import_name: dist for dist, (import_name, _) in LIBRARIES.items()}
@@ -55,11 +62,13 @@ def _package_version(import_name: str) -> str:
     raise AssertionError(f"{import_name}/__init__.py has no __version__")
 
 
-def test_every_distribution_has_the_same_version_as_its_package():
-    versions = {dist: _project(dist)["version"] for dist in (*LIBRARIES, "launch-runner")}
-    assert len(set(versions.values())) == 1, f"versions must move together: {versions}"
+def _version(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in text.split("."))
+
+
+def test_every_distribution_has_the_version_of_its_package():
     for dist, (import_name, _) in LIBRARIES.items():
-        assert _package_version(import_name) == versions[dist], f"{import_name}.__version__ != {dist} version"
+        assert _package_version(import_name) == _project(dist)["version"], f"{import_name}.__version__ != {dist}"
 
 
 @pytest.mark.parametrize("dist", sorted(LIBRARIES))
@@ -79,17 +88,36 @@ def test_declared_dependencies_are_exactly_what_the_code_imports(dist):
     assert declared == needed, f"{dist}: declares {sorted(declared)} but imports {sorted(needed)}"
 
 
-def test_internal_dependencies_are_pinned_to_the_matching_version():
-    version = _project("commandport")["version"]
-    for dist in ("proclaunch", "lifecycle-runner", "launch-runner"):
-        for requirement in _project(dist).get("dependencies", []):
-            if _normalise(requirement) in LIBRARIES:
-                assert requirement.replace(" ", "").endswith(f"=={version}"), f"{dist}: {requirement}"
+@pytest.mark.parametrize("dist", CAPABILITY_LIBRARIES)
+def test_a_capability_library_installs_alone(dist):
+    siblings = {_normalise(r) for r in _project(dist).get("dependencies", [])} & set(LIBRARIES)
+    assert not siblings, f"{dist} depends on {sorted(siblings)}: capability libraries must not depend on each other"
 
 
-def test_the_meta_package_pulls_exactly_the_three_libraries_and_ships_no_code():
-    project = _project("launch-runner")
-    assert {_normalise(r) for r in project["dependencies"]} == set(LIBRARIES)
+def test_the_meta_package_pins_exactly_the_tested_set():
+    requirements = {_normalise(r): r.replace(" ", "") for r in _project("launch-runner")["dependencies"]}
+    assert set(requirements) == set(META_MEMBERS)
+    for dist in META_MEMBERS:
+        assert requirements[dist] == f"{dist}=={_project(dist)['version']}", requirements[dist]
+
+
+@pytest.mark.parametrize("dist", sorted(set(LIBRARIES) - set(CAPABILITY_LIBRARIES)))
+def test_a_library_built_on_others_declares_bounded_ranges_that_contain_this_repository(dist):
+    """``>=lower,<upper``: the lower bound is the oldest version whose public surface the code uses, the upper
+    bound the next incompatible release (a minor, while the major is 0). Never ``==`` and never open-ended, and
+    the version in this repository must satisfy it, or the repository would not install its own libraries."""
+    for requirement in _project(dist)["dependencies"]:
+        name = _normalise(requirement)
+        if name not in LIBRARIES:
+            continue
+        match = re.fullmatch(rf"{re.escape(name)}>=(\d+(?:\.\d+)*),<(\d+(?:\.\d+)*)", requirement.replace(" ", ""))
+        assert match, f"{dist}: {requirement!r} is not a bounded >=lower,<upper range"
+        lower, upper = _version(match[1]), _version(match[2])
+        have = _version(_project(name)["version"])
+        assert lower <= have < upper, f"{dist}: {requirement} excludes {name} {_project(name)['version']} of this repo"
+
+
+def test_the_meta_package_ships_no_code():
     config = tomllib.loads((DISTRIBUTIONS / "launch-runner" / "pyproject.toml").read_text(encoding="utf-8"))
     assert config["tool"]["setuptools"]["packages"] == []
 
