@@ -64,6 +64,22 @@ class ServiceStarter(Protocol):
     def start(self, spec: ServiceSpec) -> StartResult: ...
 
 
+@dataclass(frozen=True)
+class CheckOutput:
+    """What running a client's check command came to. ``exit_code`` is None unless the command ran and exited;
+    ``error`` then says why it could not tell (did not start, timed out, ...)."""
+
+    exit_code: int | None
+    error: str | None = None
+
+
+class CheckRunner(Protocol):
+    """What a command check requires: run *argv* and report how it ended, within *timeout_seconds*.
+    Never raises; a command that could not be run is a ``CheckOutput`` with ``error`` set."""
+
+    def run(self, argv: tuple[str, ...], *, cwd: str | None, timeout_seconds: float) -> CheckOutput: ...
+
+
 ShouldRun = Callable[[Target], bool]
 """The one question the library asks of a client: should this target be started now?
 

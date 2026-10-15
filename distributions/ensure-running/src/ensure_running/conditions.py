@@ -1,12 +1,11 @@
 """Ready-made ``ShouldRun`` adapters. A client may pass any ``Callable[[Target], bool]`` instead."""
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 from proclaunch.api import service_status
 
-from ensure_running.domain import Target
+from ensure_running.domain import CheckRunner, Target
 
 _CHECK_TIMEOUT_SECONDS = 30.0
 
@@ -31,20 +30,18 @@ def service_not_running(state_dir: Path):
 
 class CommandCheck:
     """A client's check as a terminal command: exit 0 means "run it", exit 1 means "leave it". Any other
-    exit code, a timeout, or a command that cannot start raises ``CheckFailed``: the check could not tell."""
+    exit code, a timeout, or a command that cannot start raises ``CheckFailed``: the check could not tell.
 
-    def __init__(self, timeout_seconds: float = _CHECK_TIMEOUT_SECONDS) -> None:
+    *runner* is what actually runs the command (the ``CheckRunner`` port); the composition root passes
+    ``ensure_running.lifecycle_check.LifecycleCheckRunner``."""
+
+    def __init__(self, runner: CheckRunner, timeout_seconds: float = _CHECK_TIMEOUT_SECONDS) -> None:
+        self._runner = runner
         self._timeout = timeout_seconds
 
     def __call__(self, target: Target) -> bool:
         assert target.check, "CommandCheck needs target.check"
-        try:
-            done = subprocess.run(
-                list(target.check), cwd=target.cwd, stdin=subprocess.DEVNULL, capture_output=True,
-                timeout=self._timeout,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise CheckFailed(f"{type(exc).__name__}: {exc}") from exc
-        if done.returncode in (0, 1):
-            return done.returncode == 0
-        raise CheckFailed(f"check exited {done.returncode}")
+        out = self._runner.run(target.check, cwd=target.cwd, timeout_seconds=self._timeout)
+        if out.exit_code in (0, 1):
+            return out.exit_code == 0
+        raise CheckFailed(out.error or f"check exited {out.exit_code}")

@@ -9,7 +9,7 @@ description = "Keep named commands running: check a condition per target and sta
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Brian Powers" }]
-dependencies = ["proclaunch==0.1.1"]
+dependencies = ["lifecycle-runner==0.1.1", "proclaunch==0.1.1"]
 
 [tool.setuptools]
 packages = ["ensure_running"]

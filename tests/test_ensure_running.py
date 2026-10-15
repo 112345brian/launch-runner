@@ -94,3 +94,44 @@ def test_every_proclaunch_launch_method_maps_to_a_start_outcome():
     from proclaunch.domain import LaunchMethod
 
     assert set(cli._OUTCOME) == set(LaunchMethod)
+
+
+# ---- command checks run through a port ------------------------------------------------------------------
+
+
+class FakeChecks:
+    def __init__(self, *outputs):
+        self.outputs, self.calls = list(outputs), []
+
+    def run(self, argv, *, cwd, timeout_seconds):
+        self.calls.append((argv, cwd, timeout_seconds))
+        return self.outputs.pop(0)
+
+
+def _checked(output, **kw):
+    from ensure_running.conditions import CommandCheck
+
+    runner = FakeChecks(output)
+    target = Target("p", ("srv",), cwd="/p", check=("check", "--now"))
+    return CommandCheck(runner, **kw), target, runner
+
+
+@pytest.mark.parametrize(("code", "expected"), [(0, True), (1, False)])
+def test_a_command_check_maps_exit_0_and_1(code, expected):
+    from ensure_running.domain import CheckOutput
+
+    check, target, runner = _checked(CheckOutput(code))
+    assert check(target) is expected
+    assert runner.calls == [(("check", "--now"), "/p", 30.0)]
+
+
+@pytest.mark.parametrize("output", [("exit", 7, None), ("timeout", None, "timed out after 30s"),
+                                    ("start", None, "FileNotFoundError: executable not found")])
+def test_a_check_that_could_not_tell_raises_check_failed(output):
+    from ensure_running.conditions import CheckFailed
+    from ensure_running.domain import CheckOutput
+
+    _, code, error = output
+    check, target, _ = _checked(CheckOutput(code, error))
+    with pytest.raises(CheckFailed):
+        check(target)

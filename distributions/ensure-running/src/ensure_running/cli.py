@@ -22,6 +22,7 @@ from ensure_running import history as history_mod
 from ensure_running.conditions import CommandCheck, service_not_running
 from ensure_running.config import Config, ConfigError
 from ensure_running.domain import Outcome, ServiceSpec, StartOutcome, StartResult, Target
+from ensure_running.lifecycle_check import LifecycleCheckRunner
 from ensure_running.reconciler import Reconciler
 
 
@@ -63,7 +64,7 @@ def _job_spec(cfg: Config, config_path: Path) -> ProcessSpec:
 
 def _should_run(cfg: Config):
     """Per target: its own ``check`` command when it has one, else "its recorded service is not running"."""
-    default, command = service_not_running(cfg.state_dir), CommandCheck()
+    default, command = service_not_running(cfg.state_dir), CommandCheck(LifecycleCheckRunner())
 
     def should_run(target: Target) -> bool:
         return command(target) if target.check else default(target)

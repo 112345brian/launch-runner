@@ -8,6 +8,7 @@ import sys
 from ensure_running import Target
 from ensure_running import cli, config
 from ensure_running.conditions import CheckFailed, CommandCheck, service_not_running
+from ensure_running.lifecycle_check import LifecycleCheckRunner
 from ensure_running.config import ConfigError
 
 
@@ -68,7 +69,7 @@ def test_default_check_starts_only_a_target_without_a_live_record(tmp_path):
 @pytest.mark.parametrize("code, expected", [(0, True), (1, False)])
 def test_command_check_exit_code_is_the_answer(code, expected):
     t = Target("a", ("x",), check=(sys.executable, "-c", f"raise SystemExit({code})"))
-    assert CommandCheck()(t) is expected
+    assert CommandCheck(LifecycleCheckRunner())(t) is expected
 
 
 @pytest.mark.parametrize("check", [
@@ -78,7 +79,7 @@ def test_command_check_exit_code_is_the_answer(code, expected):
 ])
 def test_command_check_that_cannot_tell_raises(check):
     with pytest.raises(CheckFailed):
-        CommandCheck(timeout_seconds=0.5)(Target("a", ("x",), check=check))
+        CommandCheck(LifecycleCheckRunner(), timeout_seconds=0.5)(Target("a", ("x",), check=check))
 
 
 def test_parse_check_as_string_or_list(tmp_path):
