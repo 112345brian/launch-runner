@@ -70,9 +70,9 @@ BASELINE_KEY = "findings"
 DEFAULT_ALLOW = ("lifecycle_runner.adapters", "proclaunch.adapters")
 
 DEFAULT_FIX_HINT = (
-    "run it through the command ports instead (commandport.CommandCapturer / CommandStreamer / CommandRunner "
-    "for a command, commandport.BackgroundLauncher for a detached process; lifecycle_runner and proclaunch "
-    "implement them)"
+    "run it through the command ports instead (lifecycle_runner's CommandCapturer / CommandStreamer / "
+    "CommandRunner for a command, proclaunch's BackgroundLauncher for a detached process; or a narrow local "
+    "port that one of them satisfies)"
 )
 
 

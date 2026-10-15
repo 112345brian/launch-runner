@@ -1,27 +1,27 @@
-"""The command contract: how a program asks for a process to be run, and the check that keeps it that way.
+"""commandport: the check that keeps a codebase from starting processes outside its adapters, and the old home
+of the command and launch contract.
 
-A leaf library (standard library only, imports nothing from any application package) in two halves:
+The contract itself now belongs to the libraries that provide it:
 
-- **The contract** (``domain``, ``ports``): ``CaptureSpec`` / ``RunSpec`` / ``StreamSpec`` and their results
-  with an explicit ``RunOutcome``; ``ProcessSpec`` / ``LaunchResult`` for a detached background process; and
-  the narrow Protocols an application depends on (``CommandCapturer``, ``CommandStreamer``,
-  ``CommandRunner``, ``LineStream``, ``BackgroundLauncher``, ``Supervisor``). Pure: no process, file or
-  network module is imported, so domain, service and workflow code may depend on it.
-  ``lifecycle_runner`` implements run / capture / stream and ``proclaunch`` implements the launcher.
-- **The fakes** (``testing``): in-memory ``FakeCommandRunner``, ``FakeLauncher`` and ``FakeSupervisors``,
-  so a consumer's tests bind the contract instead of patching ``subprocess``.
+- ``lifecycle_runner`` -- ``CaptureSpec`` / ``RunSpec`` / ``StreamSpec``, their results with an explicit
+  ``RunOutcome``, the ``CommandCapturer`` / ``CommandStreamer`` / ``CommandRunner`` / ``LineStream`` ports and
+  ``lifecycle_runner.testing.FakeCommandRunner``;
+- ``proclaunch`` -- ``ProcessSpec`` / ``LaunchResult`` / ``LaunchMethod`` / ``EndResult``, the
+  ``BackgroundLauncher`` / ``Supervisor`` ports and ``proclaunch.testing.FakeLauncher`` / ``FakeSupervisors``.
+
+``commandport.domain``, ``commandport.ports`` and ``commandport.testing`` still answer to the old names: each
+forwards lazily to the provider and returns the provider's own object, so nothing is imported (and nothing is
+installed) until a moved name is used, and a missing provider is an ``ImportError`` that names it. A library
+that wants its own vocabulary should not import these; it defines a narrow local protocol and lets a provider
+satisfy it structurally.
+
+What lives here:
+
 - **The enforcement** (``scan``): an AST scan, configured from ``[tool.commandport]`` in the project's
   ``pyproject.toml``, that fails when code reaches for ``subprocess`` / ``os.system`` / ... outside the
   adapters. ``python -m commandport.scan`` for a hook or CI, ``commandport.scan.assert_clean()`` for a test.
 
-The guarantees every implementation of the contract gives (they are why the contract exists):
-
-- Never raises: a command that could not start, timed out or failed while waiting is a result, not an
-  exception. Callers branch on ``outcome``.
-- Never opens a console window on Windows, whether or not the caller has a console.
-- Text is UTF-8 with undecodable bytes replaced, never the locale code page; newlines are normalised.
-- stdin is closed unless text is supplied, so a child that prompts fails fast instead of hanging.
-- A timeout kills the whole process tree and reports ``TIMED_OUT`` with the output so far.
+Standard library only; no dependencies.
 """
 
 __version__ = "0.1.1"
