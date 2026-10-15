@@ -24,6 +24,7 @@ LIBRARIES = {
     "commandport": ("commandport", DISTRIBUTIONS / "commandport" / "src" / "commandport"),
     "proclaunch": ("proclaunch", DISTRIBUTIONS / "proclaunch" / "src" / "proclaunch"),
     "lifecycle-runner": ("lifecycle_runner", DISTRIBUTIONS / "lifecycle-runner" / "src" / "lifecycle_runner"),
+    "ensure-running": ("ensure_running", DISTRIBUTIONS / "ensure-running" / "src" / "ensure_running"),
 }
 # the libraries that provide one capability each and must install alone: no dependency on any sibling
 CAPABILITY_LIBRARIES = ("commandport", "proclaunch", "lifecycle-runner")
@@ -239,7 +240,7 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
     ))
 
     wheels = tmp_path / "wheels"
-    for dist in ("commandport", "proclaunch", "lifecycle-runner", "launch-runner"):
+    for dist in ("commandport", "proclaunch", "lifecycle-runner", "ensure-running", "launch-runner"):
         built = capture(CaptureSpec(
             (sys.executable, "-m", "pip", "wheel", str(tree / "distributions" / dist), "--no-deps",
              "--no-build-isolation", "-q", "--disable-pip-version-check", "-w", str(wheels)),
@@ -247,7 +248,7 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
         ))
         assert built.ok, f"building {dist}: {built.stderr or built.stdout or built.error}"
     wheel_files = sorted(p.name for p in wheels.glob("*.whl"))
-    assert len(wheel_files) == 4, wheel_files
+    assert len(wheel_files) == 5, wheel_files
 
     import zipfile
 
@@ -279,8 +280,8 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
     (project / "pyproject.toml").write_text('[tool.commandport]\nroots = ["app"]\n', encoding="utf-8")
     smoke = (
         "import sys; sys.path.insert(0, sys.argv[1])\n"
-        "import commandport, lifecycle_runner, proclaunch\n"
-        "for m in (commandport, lifecycle_runner, proclaunch):\n"
+        "import commandport, ensure_running, lifecycle_runner, proclaunch\n"
+        "for m in (commandport, ensure_running, lifecycle_runner, proclaunch):\n"
         "    assert m.__file__.startswith(sys.argv[1]), m.__file__\n"
         "from lifecycle_runner.domain import CaptureSpec\n"
         "from commandport.scan import load_config, scan\n"
@@ -295,3 +296,28 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
         (sys.executable, "-c", smoke, str(target), str(project)), cwd=str(tmp_path), timeout_seconds=120,
     ))
     assert ran.ok and "smoke ok" in ran.stdout, ran.stderr or ran.stdout or ran.error
+
+
+def test_a_library_built_on_others_uses_only_their_declared_public_surface():
+    """The compatibility contract a bounded range promises: ``ensure_running`` imports siblings only from their
+    ``api`` module and only names listed in that module's ``__all__``. Anything else would be an internal that a
+    patch release is free to change."""
+    import importlib
+
+    for dist, siblings in (("ensure-running", ("proclaunch", "lifecycle_runner")),):
+        _, package_dir = LIBRARIES[dist]
+        for path in package_dir.rglob("*.py"):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        assert alias.name.split(".")[0] not in siblings or alias.name.count(".") == 0, (
+                            f"{path.name}: `import {alias.name}` reaches past the package's public module"
+                        )
+                elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                    top = node.module.split(".")[0]
+                    if top not in siblings or node.module == top:
+                        continue
+                    assert node.module == f"{top}.api", f"{path.name}: imports {node.module}, not {top}.api"
+                    public = set(importlib.import_module(node.module).__all__)
+                    for alias in node.names:
+                        assert alias.name in public, f"{path.name}: {node.module}.{alias.name} is not in __all__"

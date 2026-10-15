@@ -6,13 +6,47 @@ build-backend = "setuptools.build_meta"
 name = "ensure-running"
 version = "0.1.0"
 description = "Keep named commands running: check a condition per target and start the command when it does not hold."
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Brian Powers" }]
-dependencies = ["lifecycle-runner==0.1.1", "proclaunch==0.1.1"]
+keywords = [
+    "supervisor",
+    "reconcile",
+    "process",
+    "launchd",
+    "pty",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+# Bounded ranges: the public surfaces it uses (proclaunch.api, lifecycle_runner.api) at the versions tested
+# here, up to the next incompatible release (a minor, while the major is 0).
+dependencies = [
+    "lifecycle-runner>=0.1.1,<0.2",
+    "proclaunch>=0.1.1,<0.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/112345brian/launch-runner"
+Repository = "https://github.com/112345brian/launch-runner"
+Issues = "https://github.com/112345brian/launch-runner/issues"
 
 [tool.setuptools]
 packages = ["ensure_running"]
 
 [tool.setuptools.package-dir]
 "" = "src"
+
+[tool.setuptools.package-data]
+ensure_running = ["py.typed"]

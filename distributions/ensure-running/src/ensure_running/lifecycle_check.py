@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from lifecycle_runner import api
-from lifecycle_runner.domain import CaptureResult, CaptureSpec, RunOutcome
+from lifecycle_runner.api import CaptureResult, CaptureSpec, RunOutcome
 
 from ensure_running.domain import CheckOutput
 
