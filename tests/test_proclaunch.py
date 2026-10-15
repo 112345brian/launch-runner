@@ -192,3 +192,31 @@ def test_foreground_children_keep_the_callers_ctrl_c_but_services_get_their_own_
 
 def test_detached_flags_include_the_windowless_flag():
     assert windows.detached_flags() & windows.windowless_flags() == windows.windowless_flags()
+
+
+def test_a_process_that_cannot_be_inspected_is_assumed_alive_not_raised():
+    import psutil
+    from proclaunch.adapters import psutil_inspector
+
+    class Opaque:
+        def is_running(self):
+            return True
+
+        def status(self):
+            raise psutil.AccessDenied(1)
+
+    assert psutil_inspector._alive(Opaque()) is True
+
+
+def test_the_launchd_supervisor_does_not_resolve_the_home_directory_at_import(monkeypatch):
+    import importlib
+    import pathlib
+
+    from proclaunch.adapters import launchd
+
+    def boom():
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(pathlib.Path, "home", staticmethod(boom))
+    importlib.reload(launchd)  # must not raise
+    assert launchd.LaunchdSupervisor("x", agents_dir=pathlib.Path("/tmp/a")).plist_path.name == "x.plist"

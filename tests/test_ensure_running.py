@@ -135,3 +135,12 @@ def test_a_check_that_could_not_tell_raises_check_failed(output):
     check, target, _ = _checked(CheckOutput(code, error))
     with pytest.raises(CheckFailed):
         check(target)
+
+
+def test_lifecycle_check_runner_reports_an_invalid_command_instead_of_raising():
+    from ensure_running.lifecycle_check import LifecycleCheckRunner
+
+    runner = LifecycleCheckRunner(capture=lambda spec: (_ for _ in ()).throw(AssertionError("must not run")))
+    out = runner.run(("bad\0argv",), cwd=None, timeout_seconds=5)
+    assert out.exit_code is None and "ValueError" in out.error
+    assert runner.run((), cwd=None, timeout_seconds=5).exit_code is None

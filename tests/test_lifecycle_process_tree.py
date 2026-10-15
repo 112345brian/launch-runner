@@ -141,3 +141,13 @@ def test_the_window_flag_matches_proclaunchs_definition_on_this_platform():
     from proclaunch.adapters.windows import windowless_flags
 
     assert windowless_creationflags() == windowless_flags()
+
+
+@posix
+def test_a_reaped_leader_is_not_followed_by_a_signal_to_its_old_group(monkeypatch):
+    child = _spawn("pass", own_group=True)
+    child.wait(timeout=10)
+    called = []
+    monkeypatch.setattr(process_tree, "_stop_group", lambda pgid, timeout: called.append(pgid) or True)
+    assert terminate_tree(child, own_group=True) is True
+    assert called == [], "the group id of a reaped leader may have been recycled"

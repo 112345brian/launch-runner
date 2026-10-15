@@ -57,6 +57,12 @@ def _signal(process: psutil.Process, *, force: bool) -> None:
 
 
 def _group_members(pgid: int) -> list[int]:
+    try:
+        os.killpg(pgid, 0)  # one syscall: is there any process (zombies included) in the group?
+    except ProcessLookupError:
+        return []
+    except PermissionError:
+        pass  # exists, but not all of it is ours to signal: enumerate
     members = []
     for process in psutil.process_iter(["pid", "status"]):
         if process.info["status"] == psutil.STATUS_ZOMBIE:
@@ -134,7 +140,8 @@ def _terminate(proc: subprocess.Popen, own_group: bool, timeout: float) -> bool:
     running = proc.poll() is None
     known = _descendants(proc.pid) if running else []
 
-    if own_group and not _ON_WINDOWS:
+    if own_group and not _ON_WINDOWS and running:
+        # Only while the leader is unreaped: its pid (the group id) cannot have been recycled for another group.
         stopped = _stop_group(proc.pid, timeout)
         leader_gone = _reap(proc, _KILL_WAIT_SECONDS)
     elif running:

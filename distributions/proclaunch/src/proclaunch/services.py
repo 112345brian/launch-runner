@@ -104,8 +104,10 @@ class ServiceManager:
                     name, identity, argv=tuple(spec.argv), cwd=spec.cwd, method=result.method.value,
                 ))
             except OSError as exc:
-                self._inspector.terminate(identity, 2.0)  # never leave a process running without an ownership record
-                return LaunchResult(LaunchMethod.FAILED, error=f"cannot save record: {exc}")
+                # never leave a process running without an ownership record, and say so when that did not work
+                stopped = self._inspector.terminate(identity, 2.0)
+                left = "" if stopped else f"; process {identity.pid} could not be stopped and is running unrecorded"
+                return LaunchResult(LaunchMethod.FAILED, error=f"cannot save record: {exc}{left}")
             recorded = True
             return LaunchResult(result.method, pid=identity.pid, supervisor_error=result.supervisor_error)
         finally:

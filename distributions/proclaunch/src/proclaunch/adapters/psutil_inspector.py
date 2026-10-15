@@ -56,10 +56,14 @@ def _same_process(proc: psutil.Process, identity: ProcessIdentity) -> bool:
 
 
 def _alive(proc: psutil.Process) -> bool:
+    """Running and not a zombie. A process that may not be inspected (``AccessDenied``) is assumed alive: it is
+    not proven gone, so a stop reports it rather than raising."""
     try:
         return proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
     except psutil.NoSuchProcess:
         return False
+    except psutil.Error:
+        return True
 
 
 def _process_group_exists(process_group: int) -> bool:

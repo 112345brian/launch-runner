@@ -19,7 +19,11 @@ class LifecycleCheckRunner:
         self._capture = capture if capture is not None else api.capture
 
     def run(self, argv: tuple[str, ...], *, cwd: str | None, timeout_seconds: float) -> CheckOutput:
-        done = self._capture(CaptureSpec(argv, cwd=cwd, timeout_seconds=timeout_seconds))
+        try:
+            spec = CaptureSpec(argv, cwd=cwd, timeout_seconds=timeout_seconds)
+        except ValueError as exc:  # an empty/NUL argv or a non-positive timeout: could not tell, not a raise
+            return CheckOutput(None, f"ValueError: {exc}")
+        done = self._capture(spec)
         if done.outcome is RunOutcome.COMPLETED:
             return CheckOutput(done.returncode)
         if done.outcome is RunOutcome.TIMED_OUT:

@@ -573,3 +573,32 @@ def test_find_started_returns_the_one_matching_process_and_never_guesses():
                 proc.kill()
             except psutil.Error:
                 pass
+
+
+def test_no_caller_discards_the_result_of_a_termination():
+    """terminate() / terminate_process() report whether anything survived; a caller that drops the bool would
+    conceal a running process (the failure the survivor sweep exists to expose)."""
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parent.parent / "distributions" / "proclaunch" / "src" / "proclaunch"
+    offenders = []
+    for path in src.rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)):
+                continue
+            func = node.value.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+            receiver = ast.unparse(func.value) if isinstance(func, ast.Attribute) else ""
+            if name == "terminate_process" or (name == "terminate" and "inspector" in receiver):
+                offenders.append(f"{path.name}:{node.lineno}")
+    assert not offenders, f"a termination result is discarded at {offenders}"
+
+
+def test_a_failed_record_save_says_when_the_process_could_not_be_stopped():
+    manager, world, store, _ = build()
+    store.replace_error = OSError("disk full")
+    world.survives.add(world.next_pid + 1)  # the pid the next spawn gets cannot be terminated
+    result = manager.start(SPEC)
+    assert result.method is LaunchMethod.FAILED and "disk full" in result.error
+    assert "could not be stopped and is running unrecorded" in result.error

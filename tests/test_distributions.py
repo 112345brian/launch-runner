@@ -315,7 +315,13 @@ def test_a_library_built_on_others_uses_only_their_declared_public_surface():
                         )
                 elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
                     top = node.module.split(".")[0]
-                    if top not in siblings or node.module == top:
+                    if top in siblings and node.module == top:  # `from proclaunch import X`
+                        for alias in node.names:
+                            assert alias.name in ("api", "__version__"), (
+                                f"{path.name}: `from {top} import {alias.name}` reaches an internal module"
+                            )
+                        continue
+                    if top not in siblings:
                         continue
                     assert node.module == f"{top}.api", f"{path.name}: imports {node.module}, not {top}.api"
                     public = set(importlib.import_module(node.module).__all__)

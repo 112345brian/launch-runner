@@ -22,11 +22,15 @@ _TIMEOUT = 20
 class LaunchdSupervisor:
     label: str
     interval_seconds: int | None = None
-    agents_dir: Path = Path.home() / "Library" / "LaunchAgents"
+    agents_dir: Path | None = None  # default ~/Library/LaunchAgents, resolved on use (not at import)
+
+    @property
+    def _agents_dir(self) -> Path:
+        return self.agents_dir if self.agents_dir is not None else Path.home() / "Library" / "LaunchAgents"
 
     @property
     def plist_path(self) -> Path:
-        return self.agents_dir / f"{self.label}.plist"
+        return self._agents_dir / f"{self.label}.plist"
 
     @property
     def _domain(self) -> str:
@@ -54,7 +58,7 @@ class LaunchdSupervisor:
 
     def install(self, spec: ProcessSpec) -> None:
         """Write the plist and (re)load it. Raises on failure."""
-        self.agents_dir.mkdir(parents=True, exist_ok=True)
+        self._agents_dir.mkdir(parents=True, exist_ok=True)
         self.plist_path.write_bytes(self.render(spec))
         self._launchctl("bootout", f"{self._domain}/{self.label}", check=False)
         self._launchctl("bootstrap", self._domain, str(self.plist_path))

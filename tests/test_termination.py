@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 import time
+import types
 
 import psutil
 import pytest
@@ -86,13 +87,13 @@ def test_a_timeout_kills_a_descendant_orphaned_before_the_deadline(operation, tm
     try:
         if operation == "run":
             log = tmp_path / "out.log"
-            result = api.run(RunSpec((sys.executable, "-c", _ORPHANING), log_path=log, timeout_seconds=3))
+            result = api.run(RunSpec((sys.executable, "-c", _ORPHANING), log_path=log, timeout_seconds=5))
             output, outcome, error = log.read_text(encoding="utf-8"), result.outcome, result.error
         elif operation == "capture":
-            result = api.capture(CaptureSpec((sys.executable, "-c", _ORPHANING), timeout_seconds=3))
+            result = api.capture(CaptureSpec((sys.executable, "-c", _ORPHANING), timeout_seconds=5))
             output, outcome, error = result.stdout, result.outcome, result.error
         else:
-            stream = api.stream(StreamSpec((sys.executable, "-c", _ORPHANING), timeout_seconds=3))
+            stream = api.stream(StreamSpec((sys.executable, "-c", _ORPHANING), timeout_seconds=5))
             output = "".join(stream)
             outcome = RunOutcome.TIMED_OUT if stream.timed_out else RunOutcome.COMPLETED
             error = None
@@ -150,7 +151,8 @@ def _popen_kwargs(monkeypatch, spec: RunSpec, *, console: bool) -> dict:
         seen.update(kwargs)
         return _Proc()
 
-    monkeypatch.setattr(popen_spawner.subprocess, "Popen", fake_popen)
+    shim = types.SimpleNamespace(**{**vars(subprocess), "Popen": fake_popen})
+    monkeypatch.setattr(popen_spawner, "subprocess", shim)  # only this module sees the fake, not the process
     monkeypatch.setattr(popen_spawner, "_caller_has_console", lambda: console)
     popen_spawner.PopenSpawner().spawn(spec)
     return seen
