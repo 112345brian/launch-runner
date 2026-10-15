@@ -12,7 +12,7 @@ from lifecycle_runner import api
 from lifecycle_runner.adapters import popen_capture, popen_spawner
 from lifecycle_runner.capture import Capturer
 from commandport.domain import CaptureSpec, RunOutcome, RunSpec, StreamSpec
-from proclaunch.api import windowless_creationflags
+from lifecycle_runner.adapters.windows import windowless_creationflags
 from commandport.testing import FakeCommandRunner
 
 

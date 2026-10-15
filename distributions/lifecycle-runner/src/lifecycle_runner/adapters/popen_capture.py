@@ -15,7 +15,8 @@ from collections.abc import Iterator
 
 from commandport.domain import CaptureSpec, StreamSpec
 from lifecycle_runner.adapters.process_group import own_group
-from proclaunch.api import terminate_process, windowless_creationflags
+from lifecycle_runner.adapters.process_tree import terminate_tree
+from lifecycle_runner.adapters.windows import windowless_creationflags
 
 _TERMINATE_TIMEOUT_SECONDS = 5.0
 _DRAIN_TIMEOUT_SECONDS = 2.0
@@ -43,7 +44,7 @@ def _decode(data: bytes | None) -> str:
 def _kill_tree(proc: subprocess.Popen) -> bool:
     """Stop *proc* and its descendants. True when nothing of it remains. Never raises."""
     try:
-        gone = terminate_process(proc.pid, timeout=_TERMINATE_TIMEOUT_SECONDS)
+        gone = terminate_tree(proc, own_group=bool(own_group()), timeout=_TERMINATE_TIMEOUT_SECONDS)
         if not gone:
             try:
                 proc.kill()

@@ -34,7 +34,7 @@ classifiers = [
 ]
 dependencies = [
     "commandport==0.1.1",
-    "proclaunch==0.1.1",
+    "psutil>=5.9",
 ]
 
 [project.urls]
