@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
-from commandport.domain import ProcessSpec
-from commandport.ports import BackgroundLauncher
-from ensure_running.domain import Outcome, ShouldRun, Target, TargetResult
+from ensure_running.domain import (
+    Outcome, ServiceSpec, ServiceStarter, ShouldRun, StartOutcome, Target, TargetResult,
+)
 
 
 class Reconciler:
@@ -14,10 +14,10 @@ class Reconciler:
     the restart cap; pass a persistent mapping so the cap survives each scheduled run."""
 
     def __init__(
-        self, launcher: BackgroundLauncher, should_run: ShouldRun, *,
+        self, starter: ServiceStarter, should_run: ShouldRun, *,
         now: Callable[[], float], history: dict[str, list[float]] | None = None, dry_run: bool = False,
     ) -> None:
-        self._launcher, self._should_run, self._now = launcher, should_run, now
+        self._starter, self._should_run, self._now = starter, should_run, now
         self.history = history if history is not None else {}
         self._dry_run = dry_run
 
@@ -38,11 +38,11 @@ class Reconciler:
             return TargetResult(t.name, Outcome.THROTTLED, detail=f"{len(recent)} starts in {t.window_seconds:g}s")
         if self._dry_run:
             return TargetResult(t.name, Outcome.DRY_RUN)
-        spec = ProcessSpec(t.argv, cwd=t.cwd, log_path=t.log_path, name=t.name)
-        launch = self._launcher.launch(spec)
-        if launch.started:
+        result = self._starter.start(ServiceSpec(t.name, t.argv, cwd=t.cwd, log_path=t.log_path))
+        if result.outcome is StartOutcome.STARTED:
             recent.append(now)
-            return TargetResult(t.name, Outcome.STARTED, launch)
-        if launch.ok:  # ALREADY_RUNNING: the condition lagged the record; nothing to do
-            return TargetResult(t.name, Outcome.OK, launch)
-        return TargetResult(t.name, Outcome.START_FAILED, launch, launch.error)
+            return TargetResult(t.name, Outcome.STARTED, result)
+        if result.outcome is StartOutcome.ALREADY_RUNNING:  # the condition lagged the record; nothing to do
+            return TargetResult(t.name, Outcome.OK, result)
+        # IN_PROGRESS and FAILED: nothing is known to be running because of this call
+        return TargetResult(t.name, Outcome.START_FAILED, result, result.error)

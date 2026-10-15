@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-from commandport.domain import LaunchResult, ProcessSpec
+from proclaunch.domain import LaunchMethod, ProcessSpec
 from proclaunch.adapters.json_record_store import JsonFileRecordStore
 from proclaunch.adapters.launchd import LaunchdSupervisor
 from proclaunch.adapters.psutil_inspector import PsutilInspector
@@ -21,18 +21,29 @@ from ensure_running import config as config_mod
 from ensure_running import history as history_mod
 from ensure_running.conditions import CommandCheck, service_not_running
 from ensure_running.config import Config, ConfigError
-from ensure_running.domain import Outcome, Target
+from ensure_running.domain import Outcome, ServiceSpec, StartOutcome, StartResult, Target
 from ensure_running.reconciler import Reconciler
 
 
+_OUTCOME = {
+    LaunchMethod.SUPERVISED: StartOutcome.STARTED,
+    LaunchMethod.SPAWNED: StartOutcome.STARTED,
+    LaunchMethod.ALREADY_RUNNING: StartOutcome.ALREADY_RUNNING,
+    LaunchMethod.IN_PROGRESS: StartOutcome.IN_PROGRESS,
+    LaunchMethod.FAILED: StartOutcome.FAILED,
+}
+
+
 class _ServiceStarter:
-    """Adapts ``ServiceManager.start`` (records identity, refuses a second copy) to the launcher port."""
+    """Translates ``ServiceStarter`` (this library's vocabulary) to proclaunch's ``ServiceManager.start``, which
+    records identity and refuses a second copy. The only place the two vocabularies meet."""
 
     def __init__(self, manager: ServiceManager) -> None:
         self._manager = manager
 
-    def launch(self, spec: ProcessSpec) -> LaunchResult:
-        return self._manager.start(spec)
+    def start(self, spec: ServiceSpec) -> StartResult:
+        launch = self._manager.start(ProcessSpec(spec.argv, cwd=spec.cwd, log_path=spec.log_path, name=spec.name))
+        return StartResult(_OUTCOME[launch.method], pid=launch.pid, error=launch.error)
 
 
 def _manager(cfg: Config) -> ServiceManager:
@@ -71,7 +82,7 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
         history_mod.save(hist_path, reconciler.history)
     for r in results:
         extra = f"  ({r.detail})" if r.detail else ""
-        pid = f" pid={r.launch.pid}" if r.launch is not None and r.launch.pid else ""
+        pid = f" pid={r.start.pid}" if r.start is not None and r.start.pid else ""
         print(f"{r.target}: {r.outcome.value}{pid}{extra}")
     bad = [r for r in results if r.outcome not in (Outcome.OK, Outcome.STARTED, Outcome.DRY_RUN)]
     return 1 if bad else 0

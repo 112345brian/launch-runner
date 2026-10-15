@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from commandport.domain import LaunchMethod, LaunchResult
+from ensure_running.domain import StartOutcome, StartResult
 import sys
 
 from ensure_running import Target
@@ -122,9 +122,9 @@ def test_cli_run_starts_missing_target_and_reports_exit_code(tmp_path, monkeypat
 
     class Starter:
         def __init__(self, manager): ...
-        def launch(self, spec):
+        def start(self, spec):
             started.append(spec.name)
-            return LaunchResult(LaunchMethod.SPAWNED, pid=42)
+            return StartResult(StartOutcome.STARTED, pid=42)
 
     monkeypatch.setattr(cli, "_ServiceStarter", Starter)
     monkeypatch.setattr(cli, "_manager", lambda cfg: None)

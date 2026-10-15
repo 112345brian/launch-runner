@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from commandport.domain import LaunchMethod, LaunchResult
 from ensure_running import Outcome, Reconciler, Target
+from ensure_running.domain import StartOutcome, StartResult
 
 
 class Launcher:
     def __init__(self, result=None):
-        self.specs, self.result = [], result or LaunchResult(LaunchMethod.SPAWNED, pid=1)
+        self.specs, self.result = [], result or StartResult(StartOutcome.STARTED, pid=1)
 
-    def launch(self, spec):
+    def start(self, spec):
         self.specs.append(spec)
         return self.result
 
@@ -51,7 +51,7 @@ def test_wanted_starts_named_service():
 
 
 def test_failed_start_is_reported_not_raised():
-    bad = Launcher(LaunchResult(LaunchMethod.FAILED, error="nope"))
+    bad = Launcher(StartResult(StartOutcome.FAILED, error="nope"))
     _, _, res = run(True, bad)
     assert res.outcome is Outcome.START_FAILED and not res.healthy and res.detail == "nope"
 
@@ -77,6 +77,20 @@ def test_only_a_real_true_starts_a_target(value):
 
 
 def test_already_running_service_is_ok_not_a_failure():
-    l = Launcher(LaunchResult(LaunchMethod.ALREADY_RUNNING, pid=9))
+    l = Launcher(StartResult(StartOutcome.ALREADY_RUNNING, pid=9))
     _, _, res = run(True, l)
     assert res.outcome is Outcome.OK and res.healthy
+
+
+def test_in_progress_is_not_started_and_not_known_running():
+    l = Launcher(StartResult(StartOutcome.IN_PROGRESS, error="another start is in progress"))
+    r, _, res = run(True, l)
+    assert res.outcome is Outcome.START_FAILED and not res.healthy and res.start.outcome is StartOutcome.IN_PROGRESS
+    assert r.history["proj"] == [], "a start that did not happen must not count against the restart cap"
+
+
+def test_every_proclaunch_launch_method_maps_to_a_start_outcome():
+    from ensure_running import cli
+    from proclaunch.domain import LaunchMethod
+
+    assert set(cli._OUTCOME) == set(LaunchMethod)

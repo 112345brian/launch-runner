@@ -5,8 +5,7 @@ import enum
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Callable
-
-from commandport.domain import LaunchResult
+from typing import Protocol
 
 
 @dataclass(frozen=True)
@@ -26,6 +25,43 @@ class Target:
             raise ValueError(f"Target needs a name and a command: {self!r}")
         if self.max_starts < 1 or self.window_seconds <= 0:
             raise ValueError("Target.max_starts must be >= 1 and window_seconds > 0")
+
+
+@dataclass(frozen=True)
+class ServiceSpec:
+    """What the reconciler asks to have started: a named command. Its own vocabulary, not a process library's."""
+
+    name: str
+    argv: tuple[str, ...]
+    cwd: str | None = None
+    log_path: Path | None = None
+
+
+class StartOutcome(enum.Enum):
+    """How a start request ended; the reconciliation policy depends on each of them."""
+
+    STARTED = "started"  # this call started a new process
+    ALREADY_RUNNING = "already_running"  # a live process already holds the name: nothing to do
+    IN_PROGRESS = "in_progress"  # another start holds the reservation: not started, not known running
+    FAILED = "failed"  # nothing started; see ``error``
+
+
+@dataclass(frozen=True)
+class StartResult:
+    outcome: StartOutcome
+    pid: int | None = None
+    error: str | None = None
+
+    @property
+    def started(self) -> bool:
+        return self.outcome is StartOutcome.STARTED
+
+
+class ServiceStarter(Protocol):
+    """What reconciliation requires of whatever starts services: start the named service unless it is already
+    running, and say which of the four outcomes happened. Never raises."""
+
+    def start(self, spec: ServiceSpec) -> StartResult: ...
 
 
 ShouldRun = Callable[[Target], bool]
@@ -48,7 +84,7 @@ class Outcome(enum.Enum):
 class TargetResult:
     target: str
     outcome: Outcome
-    launch: LaunchResult | None = None
+    start: StartResult | None = None
     detail: str | None = None
 
     @property
