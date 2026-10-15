@@ -74,7 +74,7 @@ tests/               the contract, the three libraries, and the release gate
 
 ```
 python -m pip install pytest import-linter ruff setuptools
-python -m pip install -e distributions/commandport -e distributions/proclaunch -e distributions/lifecycle-runner
+python -m pip install -e distributions/commandport -e distributions/proclaunch -e distributions/lifecycle-runner -e distributions/ensure-running
 python -m pytest
 python -m commandport.scan
 lint-imports

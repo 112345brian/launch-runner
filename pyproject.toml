@@ -3,7 +3,10 @@
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src"]
+pythonpath = [
+    "distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src",
+    "distributions/ensure-running/src",
+]
 addopts = "-q"
 
 [tool.ruff]
@@ -15,12 +18,15 @@ select = ["F", "E9", "E711", "E712", "E713", "E714", "E721", "E722"]
 
 # This repository dogfoods the contract it publishes: a process may only be started by an adapter.
 [tool.commandport]
-source_roots = ["distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src"]
+source_roots = [
+    "distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src",
+    "distributions/ensure-running/src",
+]
 allow = ["lifecycle_runner.adapters", "proclaunch.adapters"]
 exclude_dirs = ["tests"]
 
 [tool.importlinter]
-root_packages = ["commandport", "proclaunch", "lifecycle_runner"]
+root_packages = ["commandport", "proclaunch", "lifecycle_runner", "ensure_running"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -61,3 +67,18 @@ name = "lifecycle_runner adapters must not import the runner or the composition 
 type = "forbidden"
 source_modules = ["lifecycle_runner.adapters"]
 forbidden_modules = ["lifecycle_runner.api", "lifecycle_runner.runner"]
+
+[[tool.importlinter.contracts]]
+name = "ensure_running core must not import a sibling library or an I/O module"
+type = "forbidden"
+source_modules = ["ensure_running.domain", "ensure_running.reconciler"]
+forbidden_modules = [
+    "proclaunch", "lifecycle_runner", "commandport", "psutil", "subprocess", "socket", "urllib", "tempfile", "shutil",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ensure_running adapters must not import the reconciler or the composition roots"
+type = "forbidden"
+source_modules = ["ensure_running.conditions", "ensure_running.config", "ensure_running.history", "ensure_running.lifecycle_check"]
+forbidden_modules = ["ensure_running.reconciler", "ensure_running.api", "ensure_running.cli"]
