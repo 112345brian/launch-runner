@@ -1,7 +1,7 @@
 """The driven ports: what the runner and the capturer need from the outside world.
 
-Adapters in ``lifecycle_runner.adapters`` implement these against ``Popen``, the filesystem and proclaunch's
-process-tree terminate. Tests implement them with in-memory fakes (a child that hangs forever, one that
+Adapters in ``lifecycle_runner.adapters`` implement these against ``Popen``, the filesystem and psutil's
+process tree. Tests implement them with in-memory fakes (a child that hangs forever, one that
 fails to wait).
 
 The operation ports application code depends on (``CommandCapturer`` / ``CommandStreamer`` /

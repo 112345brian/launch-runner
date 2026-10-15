@@ -14,8 +14,8 @@ a process never depends on how it is started.
 commandport        no dependencies
    ^      ^
    |      +-- proclaunch        <- psutil
-   |             ^
-   +-- lifecycle-runner  <------+
+   |
+   +-- lifecycle-runner  <- psutil
 ```
 
 ## Why

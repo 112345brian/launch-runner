@@ -7,9 +7,8 @@ self-contained and builds as a normal project:
 commandport      <- no dependencies. The contract, the fakes, the scan.
    ^      ^
    |      +-- proclaunch        <- commandport, psutil. Detached services.
-   |             ^
-   +-- lifecycle-runner  <------+   run / capture / stream; reuses proclaunch's
-                                    windowless flag and tree kill.
+   |
+   +-- lifecycle-runner  <- commandport, psutil. run / capture / stream; independent of proclaunch.
 launch-runner    meta-package: the three above at matching versions.
 ```
 

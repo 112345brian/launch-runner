@@ -1,9 +1,9 @@
 """Run a local command to completion, with a time limit: log it, capture it, or stream it.
 
 The sibling of ``proclaunch``: proclaunch *starts* a long-lived process and
-returns at once; this *runs* one and waits. Both are leaf libraries on the
-``libraries`` layer; this one may import ``proclaunch`` (``tach.toml`` declares
-the edge) and nothing from ``jobsearch``, ``tracker`` or any application package.
+returns at once; this *runs* one and waits. They are independent capability
+libraries: this one imports nothing from ``proclaunch`` and nothing from any
+application package.
 
 Same hexagonal layout as proclaunch (enforced by
 ``tests/test_lifecycle_runner_architecture.py`` and an import-linter contract):
@@ -13,7 +13,8 @@ Same hexagonal layout as proclaunch (enforced by
   needs from the world.
 - ``runner`` -- the behaviour (``Runner``): spawn, wait with a deadline, kill on
   timeout, report. Written against ports only.
-- ``adapters`` -- ``Popen`` + a log file + proclaunch's process-tree terminate.
+- ``adapters`` -- ``Popen`` + a log file, its own process-tree stop (``process_tree``), process group
+  (``process_group``) and Windows flag (``windows``).
 - ``api`` -- the composition root; the only module that sees both sides.
 - ``__main__`` -- ``python -m lifecycle_runner --log PATH --timeout S -- CMD ...``,
   the form a scheduler task invokes.
@@ -56,7 +57,7 @@ Windows, an explicit outcome, UTF-8 text) and are what application code uses ins
 Application code depends on the operation ports (``CommandRunner`` / ``CommandCapturer`` /
 ``CommandStreamer`` in ``ports``); ``api.use_commands`` binds a fake for a test
 (``commandport.testing``). ``commandport.scan`` (``[tool.commandport]``) fails on a raw
-``subprocess`` call outside this package's and proclaunch's adapters.
+``subprocess`` call outside the adapters of this package and of proclaunch.
 
 Callers must consume results; ``tests/test_lifecycle_runner.py`` fails on a call
 that discards one.

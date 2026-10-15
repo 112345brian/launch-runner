@@ -47,8 +47,14 @@ forbidden_modules = ["proclaunch.api", "proclaunch.launching", "proclaunch.servi
 name = "lifecycle_runner core must not import adapters or process/file/network modules"
 type = "forbidden"
 source_modules = ["lifecycle_runner.ports", "lifecycle_runner.runner", "lifecycle_runner.capture"]
-forbidden_modules = ["lifecycle_runner.adapters", "proclaunch", "subprocess", "psutil", "socket", "urllib", "tempfile", "shutil"]
+forbidden_modules = ["lifecycle_runner.adapters", "subprocess", "psutil", "socket", "urllib", "tempfile", "shutil"]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "lifecycle_runner is independent of proclaunch"
+type = "forbidden"
+source_modules = ["lifecycle_runner"]
+forbidden_modules = ["proclaunch"]
 
 [[tool.importlinter.contracts]]
 name = "lifecycle_runner adapters must not import the runner or the composition root"

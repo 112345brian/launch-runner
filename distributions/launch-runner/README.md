@@ -9,4 +9,4 @@ A meta-package: installing it installs the three libraries at matching versions.
 | `proclaunch` | `proclaunch` | detached background services with identity and readiness |
 
 Install a single one when that is all you need: `commandport` has no dependencies, `proclaunch` needs only
-`psutil`, `lifecycle-runner` pulls in `commandport` and `proclaunch`.
+`psutil`, and `lifecycle-runner` needs `commandport` and `psutil` (not `proclaunch`).

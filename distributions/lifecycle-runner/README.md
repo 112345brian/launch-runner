@@ -20,4 +20,6 @@ Also a scheduler-task entry point: `python -m lifecycle_runner --log run.log --t
 
 Tests: `lifecycle_runner.api.use_commands(commandport.testing.FakeCommandRunner())`.
 
-It depends on `proclaunch` only for the one definition of "no console window" and the process-tree kill.
+It depends on `commandport` and `psutil` only: it owns its process-tree kill and its "no console window" flag,
+so installing it does not install `proclaunch`. A timeout stops the child's whole process group (POSIX), a
+console-attached run is stopped by walking its descendants, and the result says when something survived.
