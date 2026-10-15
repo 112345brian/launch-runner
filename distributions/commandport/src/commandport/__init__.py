@@ -13,4 +13,4 @@ provide it: ``lifecycle_runner.domain`` / ``.ports`` / ``.testing`` for run, cap
 Standard library only; no dependencies; imports none of the libraries it checks.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"

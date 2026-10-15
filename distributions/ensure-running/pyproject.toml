@@ -33,8 +33,8 @@ classifiers = [
 # Bounded ranges: the public surfaces it uses (proclaunch.api, lifecycle_runner.api) at the versions tested
 # here, up to the next incompatible release (a minor, while the major is 0).
 dependencies = [
-    "lifecycle-runner>=0.1.1,<0.2",
-    "proclaunch>=0.1.1,<0.2",
+    "lifecycle-runner>=0.2.0,<0.3",
+    "proclaunch>=0.2.0,<0.3",
 ]
 
 [project.urls]
