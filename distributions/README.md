@@ -4,7 +4,7 @@ Each library lives inside its own distribution directory (`<name>/src/<package>/
 self-contained and builds as a normal project:
 
 ```
-commandport      <- no dependencies. The contract, the fakes, the scan.
+commandport      <- no dependencies. The scan; imports none of the libraries it checks.
    ^      ^
    |      +-- proclaunch        <- commandport, psutil. Detached services.
    |

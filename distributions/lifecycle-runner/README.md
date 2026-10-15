@@ -1,10 +1,10 @@
 # lifecycle-runner
 
-Run a local command to completion. Three operations over one contract (`commandport`):
+Run a local command to completion. Three operations, each returning an explicit result and never raising:
 
 ```python
-from commandport.domain import CaptureSpec, RunSpec, StreamSpec
 from lifecycle_runner.api import capture, run, stream
+from lifecycle_runner.domain import CaptureSpec, RunSpec, StreamSpec
 
 done = capture(CaptureSpec(("git", "rev-parse", "HEAD"), timeout_seconds=15))
 if done.ok:
@@ -18,8 +18,8 @@ run(RunSpec(("make", "build"), inherit_stdio=True))   # attached to this console
 
 Also a scheduler-task entry point: `python -m lifecycle_runner --log run.log --timeout 1800 -- cmd args...`.
 
-Tests: `lifecycle_runner.api.use_commands(commandport.testing.FakeCommandRunner())`.
+Tests: `lifecycle_runner.api.use_commands(lifecycle_runner.testing.FakeCommandRunner())`.
 
-It depends on `commandport` and `psutil` only: it owns its process-tree kill and its "no console window" flag,
+It depends on `psutil` only: it owns its process-tree kill and its "no console window" flag,
 so installing it does not install `proclaunch`. A timeout stops the child's whole process group (POSIX), a
 console-attached run is stopped by walking its descendants, and the result says when something survived.

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lifecycle-runner"
 version = "0.1.1"
-description = "Run a command to completion with a time limit: capture it, stream it, or log it (implements commandport)."
+description = "Run a command to completion with a time limit: capture it, stream it, or log it (explicit results, never raises)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

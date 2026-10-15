@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "proclaunch"
 version = "0.1.1"
-description = "Start, stop and supervise long-running background processes with a contract (implements commandport)."
+description = "Start, stop and supervise long-running background processes with identity-checked records and readiness probes."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

@@ -24,10 +24,10 @@ root_packages = ["commandport", "proclaunch", "lifecycle_runner"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "commandport must stay free of providers and of process, file or network modules"
+name = "commandport checks the libraries from outside: it imports none of them"
 type = "forbidden"
-source_modules = ["commandport.domain", "commandport.ports", "commandport.testing"]
-forbidden_modules = ["lifecycle_runner", "proclaunch", "subprocess", "psutil", "socket", "urllib", "tempfile", "shutil", "os"]
+source_modules = ["commandport"]
+forbidden_modules = ["lifecycle_runner", "proclaunch", "ensure_running", "psutil"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
