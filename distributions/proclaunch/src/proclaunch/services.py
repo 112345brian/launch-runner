@@ -14,8 +14,7 @@ from proclaunch.domain import (
     LaunchMethod, LaunchResult, ProcessIdentity, ProcessSpec, RecordUnreadable, ServiceRecord, ServiceStatus,
     StopOutcome, StopResult,
 )
-from proclaunch.launching import Launcher
-from proclaunch.ports import Clock, ProcessInspector, RecordStore
+from proclaunch.ports import BackgroundLauncher, Clock, ProcessInspector, RecordStore
 
 ADOPT_WAIT_SECONDS = 8.0
 
@@ -24,7 +23,7 @@ class ServiceManager:
     def __init__(
         self,
         *,
-        launcher: Launcher,
+        launcher: BackgroundLauncher,
         inspector: ProcessInspector,
         store: RecordStore,
         clock: Clock,
