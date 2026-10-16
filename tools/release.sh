@@ -21,6 +21,12 @@ DISTS=(commandport proclaunch lifecycle-runner ensure-running launch-runner)
 die() { echo "release: $*" >&2; exit 1; }
 step() { echo; echo "== $*"; }
 
+# the gates import the libraries from the checkout, not from site-packages
+SRC=""
+for dist in "${DISTS[@]}"; do SRC="$SRC:$PWD/distributions/$dist/src"; done
+export PYTHONPATH="${SRC#:}${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONDONTWRITEBYTECODE=1
+
 step "preconditions"
 if [[ "${RELEASE_ALLOW_ANY_BRANCH:-}" != "1" ]]; then
     [[ "$(git rev-parse --abbrev-ref HEAD)" == "main" ]] || die "not on main (merge the PR first)"
