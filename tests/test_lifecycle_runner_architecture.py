@@ -1,7 +1,7 @@
 """lifecycle_runner is hexagonal, like proclaunch: domain and the runner depend
 on ports, never on adapters or process/file modules; adapters never depend on
-the runner; only ``api`` wires them. It may import proclaunch's public
-composition root (``proclaunch.api``) and nothing from the application."""
+the runner; only ``api`` wires them. It imports nothing from proclaunch (they are independent capability
+libraries) and nothing from the application."""
 from __future__ import annotations
 
 import ast
@@ -32,11 +32,10 @@ def _imports(path: Path) -> set[str]:
 
 
 @pytest.mark.parametrize("module", CORE)
-def test_core_imports_no_io_module_adapter_or_proclaunch(module):
+def test_core_imports_no_io_module_or_adapter(module):
     for imp in _imports(PKG / module):
         assert imp.split(".")[0] not in IO_MODULES, f"{module} imports I/O module {imp}"
         assert not imp.startswith("lifecycle_runner.adapters"), f"{module} imports adapter {imp}"
-        assert imp.split(".")[0] != "proclaunch", f"{module} imports proclaunch; only adapters may"
 
 
 def test_ports_import_no_application_logic():
@@ -63,12 +62,10 @@ def test_package_imports_nothing_from_the_application():
             assert imp.split(".")[0] not in FOREIGN, f"{path} imports {imp}"
 
 
-def test_proclaunch_is_reached_only_through_its_composition_root():
+def test_the_package_does_not_import_proclaunch_at_all():
     for path in PKG.rglob("*.py"):
         for imp in _imports(path):
-            if imp.split(".")[0] != "proclaunch":
-                continue
-            assert imp == "proclaunch.api" or imp.startswith("proclaunch.api."), f"{path.name} imports {imp}"
+            assert imp.split(".")[0] != "proclaunch", f"{path.name} imports {imp}: the libraries are independent"
 
 
 def test_the_runner_names_no_concrete_adapter():

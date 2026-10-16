@@ -12,10 +12,15 @@ import time
 
 import psutil
 
+from proclaunch._vendor import proctree
 from proclaunch.adapters.atomic_files import ON_WINDOWS
 from proclaunch.domain import ProcessIdentity
 
-_SINCE_TOLERANCE = 0.25
+# How much earlier than the launch a matching process may *appear* to have started. Process creation time is
+# derived from the boot time, which Linux reports in whole seconds, so it can be off by almost a second against
+# the wall clock; a tight tolerance rejects the very process that was just started. A wrong match needs the same
+# argv started within this window, and an ambiguous match is refused, never guessed.
+_SINCE_TOLERANCE = 1.5
 
 
 def same_executable(found: str, wanted: str) -> bool:
@@ -53,13 +58,6 @@ def _framework_root(path: str) -> str | None:
 
 def _same_process(proc: psutil.Process, identity: ProcessIdentity) -> bool:
     return abs(proc.create_time() - identity.create_time) < 1e-3
-
-
-def _alive(proc: psutil.Process) -> bool:
-    try:
-        return proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
-    except psutil.NoSuchProcess:
-        return False
 
 
 def _process_group_exists(process_group: int) -> bool:
@@ -106,22 +104,19 @@ def _terminate_tree(proc: psutil.Process, timeout: float) -> bool:
         processes = [*proc.children(recursive=True), proc]
     except psutil.NoSuchProcess:
         return True
-    for process in reversed(processes):
-        try:
-            process.terminate()
-        except psutil.NoSuchProcess:
-            pass
-    _, alive = psutil.wait_procs(processes, timeout=timeout)
-    for process in alive:
-        try:
-            process.kill()
-        except psutil.NoSuchProcess:
-            pass
-    _, alive = psutil.wait_procs(alive, timeout=1)
-    return not alive
+    return proctree.stop_processes(processes, timeout)
 
 
 def _terminate(proc: psutil.Process, timeout: float) -> bool:
+    """Stop *proc* and its descendants; True only when none of what could be found beforehand is left."""
+    deadline = time.monotonic() + timeout
+    known = proctree.descendants(proc.pid)
+    stopped = _terminate_leader(proc, timeout)
+    swept = proctree.stop_processes(known, max(0.5, deadline - time.monotonic()))
+    return stopped and swept
+
+
+def _terminate_leader(proc: psutil.Process, timeout: float) -> bool:
     if not ON_WINDOWS:
         try:
             group = os.getpgid(proc.pid)
@@ -145,7 +140,7 @@ class PsutilInspector:
     def _unique(self, identity: ProcessIdentity) -> psutil.Process | None:
         try:
             proc = psutil.Process(identity.pid)
-            if _same_process(proc, identity) and _alive(proc):
+            if _same_process(proc, identity) and proctree.alive(proc):
                 return proc
         except psutil.NoSuchProcess:
             pass

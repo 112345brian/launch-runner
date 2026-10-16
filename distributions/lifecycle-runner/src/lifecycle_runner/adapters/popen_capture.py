@@ -13,8 +13,10 @@ import subprocess
 import threading
 from collections.abc import Iterator
 
-from commandport.domain import CaptureSpec, StreamSpec
-from proclaunch.api import terminate_process, windowless_creationflags
+from lifecycle_runner.domain import CaptureSpec, StreamSpec
+from lifecycle_runner.adapters.process_group import own_group
+from lifecycle_runner.adapters.process_tree import terminate_tree
+from lifecycle_runner.adapters.windows import windowless_creationflags
 
 _TERMINATE_TIMEOUT_SECONDS = 5.0
 _DRAIN_TIMEOUT_SECONDS = 2.0
@@ -42,7 +44,7 @@ def _decode(data: bytes | None) -> str:
 def _kill_tree(proc: subprocess.Popen) -> bool:
     """Stop *proc* and its descendants. True when nothing of it remains. Never raises."""
     try:
-        gone = terminate_process(proc.pid, timeout=_TERMINATE_TIMEOUT_SECONDS)
+        gone = terminate_tree(proc, own_group=bool(own_group()), timeout=_TERMINATE_TIMEOUT_SECONDS)
         if not gone:
             try:
                 proc.kill()
@@ -92,7 +94,7 @@ class PopenCaptureSpawner:
             stdin=subprocess.PIPE if spec.stdin_text is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT if spec.merge_stderr else subprocess.PIPE,
-            creationflags=windowless_creationflags(),
+            creationflags=windowless_creationflags(), **own_group(),
         )
         return PopenCapturedChild(proc)
 
@@ -124,6 +126,10 @@ class PopenLineStream:
             for raw in stdout:
                 yield _decode(raw)
             self._proc.wait()
+        except KeyboardInterrupt:
+            # The child is in its own process group, so the terminal's Ctrl-C no longer reaches it.
+            _kill_tree(self._proc)
+            raise
         finally:
             self._cancel_timer()
 
@@ -180,7 +186,7 @@ class PopenStreamSpawner:
             proc = subprocess.Popen(
                 _resolve(spec.argv), cwd=spec.cwd, env=_environment(spec.env),
                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                creationflags=windowless_creationflags(),
+                creationflags=windowless_creationflags(), **own_group(),
             )
         except Exception as exc:  # noqa: BLE001 -- the port promises a stream, not a raise
             return FailedLineStream(f"{type(exc).__name__}: {exc}")

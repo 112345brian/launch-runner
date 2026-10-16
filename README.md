@@ -5,7 +5,7 @@ a process never depends on how it is started.
 
 | distribution | import | what it is |
 |---|---|---|
-| [`commandport`](distributions/commandport) | `commandport` | the contract: spec/result types, the ports, in-memory fakes, and a scan that enforces it |
+| [`commandport`](distributions/commandport) | `commandport` | a scan that fails the build when code starts a process outside the adapters |
 | [`lifecycle-runner`](distributions/lifecycle-runner) | `lifecycle_runner` | run / capture / stream a command to completion |
 | [`proclaunch`](distributions/proclaunch) | `proclaunch` | detached background services with identity, readiness and optional supervision |
 | [`launch-runner`](distributions/launch-runner) | meta-package | all three at matching versions |
@@ -14,8 +14,8 @@ a process never depends on how it is started.
 commandport        no dependencies
    ^      ^
    |      +-- proclaunch        <- psutil
-   |             ^
-   +-- lifecycle-runner  <------+
+   |
+   +-- lifecycle-runner  <- psutil
 ```
 
 ## Why
@@ -25,21 +25,24 @@ fresh console window unless it is created with `CREATE_NO_WINDOW`. Every raw `su
 flag away from a window flashing on someone's desktop, and also from an unbounded wait, a leaked child tree, or
 mojibake from the locale code page. These libraries make the safe behaviour the only behaviour: every operation
 never raises (a failure is a result with an outcome), never shows a console, decodes UTF-8, closes stdin unless
-text is supplied, and on a timeout kills the whole process tree.
+text is supplied, and on a timeout stops the child's whole process group (POSIX; a console-attached run is
+stopped by walking its descendants) and says when something survived.
 
 ## Use
 
 ```python
-from commandport.domain import CaptureSpec
 from lifecycle_runner.api import capture
+from lifecycle_runner.domain import CaptureSpec
 
 done = capture(CaptureSpec(("git", "rev-parse", "HEAD"), timeout_seconds=15))
 if done.ok:
     print(done.stdout.strip())
 ```
 
-Application code depends on the ports in `commandport`; only the program's entry point binds an implementation.
-Tests bind `commandport.testing.FakeCommandRunner` instead of patching `subprocess`.
+Each library owns its types, ports and fakes: `lifecycle_runner.domain` / `.ports` / `.testing`, and
+`proclaunch.domain` / `.ports` / `.testing`. Application code takes the port it needs as an argument (or defines a
+narrower local one that a library satisfies); only the program's entry point binds an implementation. Tests bind
+`lifecycle_runner.testing.FakeCommandRunner` instead of patching `subprocess`.
 
 ## Keep it that way
 
@@ -71,7 +74,7 @@ tests/               the contract, the three libraries, and the release gate
 
 ```
 python -m pip install pytest import-linter ruff setuptools
-python -m pip install -e distributions/commandport -e distributions/proclaunch -e distributions/lifecycle-runner
+python -m pip install -e distributions/commandport -e distributions/proclaunch -e distributions/lifecycle-runner -e distributions/ensure-running
 python -m pytest
 python -m commandport.scan
 lint-imports

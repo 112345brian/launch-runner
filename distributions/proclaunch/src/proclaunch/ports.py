@@ -8,8 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from commandport.domain import ProcessSpec
-from proclaunch.domain import ProcessIdentity, ServiceRecord
+from proclaunch.domain import EndResult, LaunchResult, ProcessIdentity, ProcessSpec, ServiceRecord
 
 
 class ProcessSpawner(Protocol):
@@ -33,7 +32,8 @@ class ProcessInspector(Protocol):
 
     def terminate(self, identity: ProcessIdentity, timeout: float) -> bool:
         """Stop the process and its descendants, gracefully then by force, only
-        if *identity* still matches. True when nothing of it remains."""
+        if *identity* still matches. True when nothing of it, its group and the
+        descendants found before it was signalled remains; False when any survived."""
 
     def find_started(self, argv: tuple[str, ...], since: float) -> ProcessIdentity | None:
         """The one live process that looks like *argv* (same arguments, equivalent
@@ -77,3 +77,29 @@ class Probe(Protocol):
 
     def run(self, timeout: float) -> bool:
         """One health attempt. Never raises; failure is False."""
+
+
+# ---- the launch ports (what an application asks of "something that starts a process")
+
+
+class BackgroundLauncher(Protocol):
+    """Start a long-lived process detached from the caller, windowless, with its output sent to
+    ``ProcessSpec.log_path`` or discarded. Returns as soon as the launch was issued; never raises (a launch that
+    did not happen is ``LaunchResult.method == FAILED`` with the reason)."""
+
+    def launch(self, spec: ProcessSpec) -> LaunchResult: ...
+
+
+class Supervisor(Protocol):
+    """An operating-system supervisor (Task Scheduler, launchd, systemd) that can start what it owns."""
+
+    def available(self) -> bool:
+        """False when this supervisor does not exist here; the launcher then
+        spawns directly without reporting an error."""
+
+    def start(self, spec: ProcessSpec) -> int | None:
+        """Ask the supervisor to start the process; return its pid if known.
+        Raise on failure; the launcher falls back to a direct spawn."""
+
+    def end(self) -> EndResult:
+        """Ask the supervisor to end what it started. Never raises."""

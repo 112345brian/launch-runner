@@ -22,8 +22,11 @@ jobs:
         run: >
           python -m pip install --upgrade pip pytest import-linter ruff setuptools
           -e distributions/commandport -e distributions/proclaunch -e distributions/lifecycle-runner
+          -e distributions/ensure-running
       - name: Lint
         run: ruff check .
+      - name: Vendored copies match their source
+        run: python tools/sync_vendored.py --check
       - name: Import contracts
         run: lint-imports
       - name: No raw process calls outside the adapters

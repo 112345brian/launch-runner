@@ -11,6 +11,11 @@ from __future__ import annotations
 import enum
 import math
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from proclaunch.ports import Supervisor
 
 RESERVATION_STALE_SECONDS = 120.0
 
@@ -88,3 +93,57 @@ class ServiceRecord:
 class RecordUnreadable(Exception):
     """A stored record exists but cannot be trusted. It is preserved, never
     treated as "the service is stopped"."""
+
+
+# ---------------------------------------------------------------------------
+# What to launch, and what a launch or an end reports
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ProcessSpec:
+    """What to start. With no ``supervisor`` this is a direct spawn of ``argv``;
+    with one, the supervisor is tried first and ``argv`` is the fallback."""
+
+    argv: tuple[str, ...]
+    cwd: str | None = None
+    log_path: Path | None = None
+    supervisor: Supervisor | None = None
+    name: str | None = None  # set to make this a recorded service
+
+    def __post_init__(self) -> None:
+        if not self.argv or not self.argv[0].strip() or any("\0" in a for a in self.argv):
+            raise ValueError(f"ProcessSpec.argv must be a non-empty command without NUL: {self.argv!r}")
+
+
+class LaunchMethod(enum.Enum):
+    SUPERVISED = "supervised"  # an OS supervisor started it
+    SPAWNED = "spawned"  # direct, windowless, detached spawn
+    ALREADY_RUNNING = "already_running"  # named service whose recorded identity is still live
+    IN_PROGRESS = "in_progress"  # another start holds the reservation
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class LaunchResult:
+    method: LaunchMethod
+    pid: int | None = None
+    error: str | None = None  # why FAILED / IN_PROGRESS
+    supervisor_error: str | None = None  # the supervisor failed but the direct spawn worked
+
+    @property
+    def started(self) -> bool:
+        """This call launched a new process."""
+        return self.method in (LaunchMethod.SUPERVISED, LaunchMethod.SPAWNED)
+
+    @property
+    def ok(self) -> bool:
+        """The service is running because of this call (new or already)."""
+        return self.started or self.method is LaunchMethod.ALREADY_RUNNING
+
+
+@dataclass(frozen=True)
+class EndResult:
+    ended: bool
+    skipped: bool = False  # supervisor not available on this platform
+    error: str | None = None

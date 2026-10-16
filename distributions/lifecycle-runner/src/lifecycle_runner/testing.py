@@ -1,35 +1,24 @@
-"""In-memory implementations of the command ports, for the tests of anything that depends on them.
+"""In-memory implementation of the command ports, for the tests of anything that depends on them.
 
-They record every request, run nothing, and need no patching of ``subprocess``. They ship with the contract so
-every consumer gets them:
-
-    from commandport.testing import FakeCommandRunner
+    from lifecycle_runner.testing import FakeCommandRunner
 
     fake = FakeCommandRunner().when("agents", stdout='[{"id": "a"}]')
     with lifecycle_runner.api.use_commands(fake):
         ...
     assert fake.argvs() == [("claude", "agents", "--json")]
 
-- :class:`FakeCommandRunner` implements ``CommandRunner`` / ``CommandCapturer`` / ``CommandStreamer``. A command
-  nothing scripted fails the test loudly instead of returning a made-up success.
-- :class:`FakeLauncher` implements ``BackgroundLauncher`` (bind with ``proclaunch.api.use_launcher``).
-- :class:`FakeSupervisors` is a ``task_name -> Supervisor`` factory that records what it was asked to start/end
-  (bind with ``proclaunch.api.use_supervisor``), so a test can never end a real scheduled task.
-
-Pure: nothing here imports a process, file or network module.
+``FakeCommandRunner`` implements ``CommandRunner`` / ``CommandCapturer`` / ``CommandStreamer``. A command nothing
+scripted fails the test loudly instead of returning a made-up success. Pure: nothing here imports a process,
+file or network module.
 """
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 
-from commandport.domain import (
+from lifecycle_runner.domain import (
     CaptureResult,
     CaptureSpec,
-    EndResult,
-    LaunchMethod,
-    LaunchResult,
-    ProcessSpec,
     RunOutcome,
     RunResult,
     RunSpec,
@@ -39,7 +28,6 @@ from commandport.domain import (
 Match = str | Callable[[tuple[str, ...]], bool]
 
 
-# --------------------------------------------------------------------------------- run / capture / stream
 @dataclass
 class _Rule:
     match: Match
@@ -138,55 +126,3 @@ class FakeCommandRunner:
         if rule.outcome is RunOutcome.FAILED_TO_START:
             return FakeLineStream(None, error=rule.error or "failed to start")
         return FakeLineStream(rule)
-
-
-# --------------------------------------------------------------------------------- detached launch
-@dataclass
-class FakeLauncher:
-    """Records every ``ProcessSpec`` it is asked to launch; ``result`` is what every launch reports."""
-
-    result: LaunchResult = field(default_factory=lambda: LaunchResult(LaunchMethod.SPAWNED, pid=4242))
-    specs: list[ProcessSpec] = field(default_factory=list)
-
-    def launch(self, spec: ProcessSpec) -> LaunchResult:
-        self.specs.append(spec)
-        return self.result
-
-    def argvs(self) -> list[tuple[str, ...]]:
-        return [s.argv for s in self.specs]
-
-    @classmethod
-    def failing(cls, error: str = "FileNotFoundError: executable not found") -> "FakeLauncher":
-        return cls(result=LaunchResult(LaunchMethod.FAILED, error=error))
-
-
-@dataclass
-class FakeSupervisor:
-    task_name: str
-    owner: "FakeSupervisors"
-
-    def available(self) -> bool:
-        return self.owner.available
-
-    def start(self, spec: ProcessSpec) -> int | None:
-        self.owner.started.append(self.task_name)
-        return None
-
-    def end(self) -> EndResult:
-        if not self.owner.available:
-            return EndResult(ended=False, skipped=True)
-        self.owner.ended.append(self.task_name)
-        return self.owner.end_result
-
-
-@dataclass
-class FakeSupervisors:
-    """A ``task_name -> Supervisor`` factory. ``available=False`` models a platform with no supervisor."""
-
-    available: bool = True
-    end_result: EndResult = field(default_factory=lambda: EndResult(ended=True))
-    started: list[str] = field(default_factory=list)
-    ended: list[str] = field(default_factory=list)
-
-    def __call__(self, task_name: str) -> FakeSupervisor:
-        return FakeSupervisor(task_name, self)

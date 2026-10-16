@@ -1,19 +1,21 @@
 """Run a local command to completion, with a time limit: log it, capture it, or stream it.
 
 The sibling of ``proclaunch``: proclaunch *starts* a long-lived process and
-returns at once; this *runs* one and waits. Both are leaf libraries on the
-``libraries`` layer; this one may import ``proclaunch`` (``tach.toml`` declares
-the edge) and nothing from ``jobsearch``, ``tracker`` or any application package.
+returns at once; this *runs* one and waits. They are independent capability
+libraries: this one imports nothing from ``proclaunch`` and nothing from any
+application package.
 
 Same hexagonal layout as proclaunch (enforced by
 ``tests/test_lifecycle_runner_architecture.py`` and an import-linter contract):
 
-- ``domain`` -- ``RunSpec``, ``RunOutcome``, ``RunResult``; no I/O imports.
-- ``ports`` -- ``ChildSpawner`` / ``RunningChild`` / ``Clock``: what the runner
-  needs from the world.
+- ``domain`` -- ``RunSpec`` / ``CaptureSpec`` / ``StreamSpec``, ``RunOutcome`` and the results; no I/O imports.
+- ``ports`` -- ``ChildSpawner`` / ``RunningChild`` / ``Clock``: what the runner needs from the world; and the
+  operation ports (``CommandRunner`` / ``CommandCapturer`` / ``CommandStreamer`` / ``LineStream``) it provides.
+- ``testing`` -- ``FakeCommandRunner``, the in-memory implementation of the operation ports.
 - ``runner`` -- the behaviour (``Runner``): spawn, wait with a deadline, kill on
   timeout, report. Written against ports only.
-- ``adapters`` -- ``Popen`` + a log file + proclaunch's process-tree terminate.
+- ``adapters`` -- ``Popen`` + a log file, its own process-tree stop (``process_tree``), process group
+  (``process_group``) and Windows flag (``windows``).
 - ``api`` -- the composition root; the only module that sees both sides.
 - ``__main__`` -- ``python -m lifecycle_runner --log PATH --timeout S -- CMD ...``,
   the form a scheduler task invokes.
@@ -32,6 +34,12 @@ The contract:
   killed; ``python -m lifecycle_runner`` sets ``PYTHONUNBUFFERED=1`` so a Python
   child does not. Other children are on their own.
 - A foreground child never opens a console window on Windows.
+- On POSIX a detached child (everything except ``RunSpec(inherit_stdio=True)`` with a console) leads its own
+  process group, in the caller's session, so a timeout signals the whole group: a descendant that was orphaned
+  before the deadline is stopped too. A descendant that starts its own session or group escapes the group and
+  is stopped only while it is still a descendant of the child. A console-attached child stays in the
+  caller's group (it needs the terminal's job control) and is stopped by walking its descendants, which
+  cannot see an orphan. Windows has no process groups of this kind; see ``adapters/process_group.py``.
 - Ctrl-C / ``KeyboardInterrupt`` while waiting kills the child, then propagates.
 
 Two more operations share the same guarantees (never raises, never opens a console window on
@@ -49,11 +57,11 @@ Windows, an explicit outcome, UTF-8 text) and are what application code uses ins
 
 Application code depends on the operation ports (``CommandRunner`` / ``CommandCapturer`` /
 ``CommandStreamer`` in ``ports``); ``api.use_commands`` binds a fake for a test
-(``commandport.testing``). ``commandport.scan`` (``[tool.commandport]``) fails on a raw
-``subprocess`` call outside this package's and proclaunch's adapters.
+(``lifecycle_runner.testing``). ``commandport.scan`` (``[tool.commandport]``) fails on a raw
+``subprocess`` call outside the adapters of this package and of proclaunch.
 
 Callers must consume results; ``tests/test_lifecycle_runner.py`` fails on a call
 that discards one.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"

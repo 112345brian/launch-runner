@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 from proclaunch.adapters.windows import detached_flags, is_windows
-from commandport.domain import ProcessSpec
+from proclaunch.domain import ProcessSpec
 
 
 class SubprocessSpawner:

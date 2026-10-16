@@ -1,4 +1,4 @@
-"""The contract package stays pure, and this repository holds itself to its own scan."""
+"""commandport imports none of the libraries it checks, and this repository holds itself to its own scan."""
 from __future__ import annotations
 
 import ast
@@ -10,11 +10,13 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 def test_the_contract_package_is_pure():
-    """Inner rings import ``commandport``; it must stay free of any process, file or network module."""
-    forbidden = {"subprocess", "os", "psutil", "socket", "urllib", "http", "tempfile", "shutil", "signal",
-                 "ctypes", "requests", "lifecycle_runner", "proclaunch"}
-    for name in ("domain.py", "ports.py", "testing.py", "__init__.py"):
-        tree = ast.parse((REPO / "distributions" / "commandport" / "src" / "commandport" / name).read_text(encoding="utf-8"))
+    """commandport checks the libraries from outside: it imports none of them, nor a process-starting module."""
+    forbidden = {"subprocess", "psutil", "socket", "urllib", "http", "requests", "ctypes",
+                 "lifecycle_runner", "proclaunch", "ensure_running"}
+    package = REPO / "distributions" / "commandport" / "src" / "commandport"
+    for path in sorted(package.glob("*.py")):
+        name = path.name
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             modules = []
             if isinstance(node, ast.Import):

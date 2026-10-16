@@ -10,10 +10,11 @@ preserved and reported, never treated as "stopped".
 """
 from __future__ import annotations
 
-from commandport.domain import LaunchMethod, LaunchResult, ProcessSpec
-from proclaunch.domain import ProcessIdentity, RecordUnreadable, ServiceRecord, ServiceStatus, StopOutcome, StopResult
-from proclaunch.launching import Launcher
-from proclaunch.ports import Clock, ProcessInspector, RecordStore
+from proclaunch.domain import (
+    LaunchMethod, LaunchResult, ProcessIdentity, ProcessSpec, RecordUnreadable, ServiceRecord, ServiceStatus,
+    StopOutcome, StopResult,
+)
+from proclaunch.ports import BackgroundLauncher, Clock, ProcessInspector, RecordStore
 
 ADOPT_WAIT_SECONDS = 8.0
 
@@ -22,7 +23,7 @@ class ServiceManager:
     def __init__(
         self,
         *,
-        launcher: Launcher,
+        launcher: BackgroundLauncher,
         inspector: ProcessInspector,
         store: RecordStore,
         clock: Clock,
@@ -103,8 +104,10 @@ class ServiceManager:
                     name, identity, argv=tuple(spec.argv), cwd=spec.cwd, method=result.method.value,
                 ))
             except OSError as exc:
-                self._inspector.terminate(identity, 2.0)  # never leave a process running without an ownership record
-                return LaunchResult(LaunchMethod.FAILED, error=f"cannot save record: {exc}")
+                # never leave a process running without an ownership record, and say so when that did not work
+                stopped = self._inspector.terminate(identity, 2.0)
+                left = "" if stopped else f"; process {identity.pid} could not be stopped and is running unrecorded"
+                return LaunchResult(LaunchMethod.FAILED, error=f"cannot save record: {exc}{left}")
             recorded = True
             return LaunchResult(result.method, pid=identity.pid, supervisor_error=result.supervisor_error)
         finally:

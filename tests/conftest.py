@@ -11,7 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIRS = [
-    ROOT / "distributions" / name / "src" for name in ("commandport", "proclaunch", "lifecycle-runner")
+    ROOT / "distributions" / name / "src"
+    for name in ("commandport", "proclaunch", "lifecycle-runner", "ensure-running")
 ]
 
 

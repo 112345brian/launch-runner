@@ -1,7 +1,10 @@
-"""The three libraries are published as separate distributions plus a meta-package (``distributions/``).
+"""The libraries are published as separate distributions plus a meta-package (``distributions/``).
 
-This is the release gate: versions move together, the dependencies a distribution declares are exactly the ones
-its code imports, the meta-package pins the set, and the wheels build and work from a clean install target.
+This is the release gate. Each distribution carries its own version, which must match its package. The
+capability libraries do not depend on one another (each installs alone); a library built on others declares
+bounded ranges that contain the versions in this repository; the meta-package pins the exact tested set. The
+dependencies a distribution declares are exactly the ones its code imports, and the wheels build and work from
+a clean install target.
 """
 from __future__ import annotations
 
@@ -21,7 +24,12 @@ LIBRARIES = {
     "commandport": ("commandport", DISTRIBUTIONS / "commandport" / "src" / "commandport"),
     "proclaunch": ("proclaunch", DISTRIBUTIONS / "proclaunch" / "src" / "proclaunch"),
     "lifecycle-runner": ("lifecycle_runner", DISTRIBUTIONS / "lifecycle-runner" / "src" / "lifecycle_runner"),
+    "ensure-running": ("ensure_running", DISTRIBUTIONS / "ensure-running" / "src" / "ensure_running"),
 }
+# the libraries that provide one capability each and must install alone: no dependency on any sibling
+CAPABILITY_LIBRARIES = ("commandport", "proclaunch", "lifecycle-runner")
+# what the meta-package installs, at exactly the versions tested together
+META_MEMBERS = CAPABILITY_LIBRARIES
 # the import name of a third-party dependency -> its distribution name
 THIRD_PARTY = {"psutil": "psutil"}
 OWN_IMPORTS = {import_name: dist for dist, (import_name, _) in LIBRARIES.items()}
@@ -55,11 +63,13 @@ def _package_version(import_name: str) -> str:
     raise AssertionError(f"{import_name}/__init__.py has no __version__")
 
 
-def test_every_distribution_has_the_same_version_as_its_package():
-    versions = {dist: _project(dist)["version"] for dist in (*LIBRARIES, "launch-runner")}
-    assert len(set(versions.values())) == 1, f"versions must move together: {versions}"
+def _version(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in text.split("."))
+
+
+def test_every_distribution_has_the_version_of_its_package():
     for dist, (import_name, _) in LIBRARIES.items():
-        assert _package_version(import_name) == versions[dist], f"{import_name}.__version__ != {dist} version"
+        assert _package_version(import_name) == _project(dist)["version"], f"{import_name}.__version__ != {dist}"
 
 
 @pytest.mark.parametrize("dist", sorted(LIBRARIES))
@@ -79,17 +89,36 @@ def test_declared_dependencies_are_exactly_what_the_code_imports(dist):
     assert declared == needed, f"{dist}: declares {sorted(declared)} but imports {sorted(needed)}"
 
 
-def test_internal_dependencies_are_pinned_to_the_matching_version():
-    version = _project("commandport")["version"]
-    for dist in ("proclaunch", "lifecycle-runner", "launch-runner"):
-        for requirement in _project(dist).get("dependencies", []):
-            if _normalise(requirement) in LIBRARIES:
-                assert requirement.replace(" ", "").endswith(f"=={version}"), f"{dist}: {requirement}"
+@pytest.mark.parametrize("dist", CAPABILITY_LIBRARIES)
+def test_a_capability_library_installs_alone(dist):
+    siblings = {_normalise(r) for r in _project(dist).get("dependencies", [])} & set(LIBRARIES)
+    assert not siblings, f"{dist} depends on {sorted(siblings)}: capability libraries must not depend on each other"
 
 
-def test_the_meta_package_pulls_exactly_the_three_libraries_and_ships_no_code():
-    project = _project("launch-runner")
-    assert {_normalise(r) for r in project["dependencies"]} == set(LIBRARIES)
+def test_the_meta_package_pins_exactly_the_tested_set():
+    requirements = {_normalise(r): r.replace(" ", "") for r in _project("launch-runner")["dependencies"]}
+    assert set(requirements) == set(META_MEMBERS)
+    for dist in META_MEMBERS:
+        assert requirements[dist] == f"{dist}=={_project(dist)['version']}", requirements[dist]
+
+
+@pytest.mark.parametrize("dist", sorted(set(LIBRARIES) - set(CAPABILITY_LIBRARIES)))
+def test_a_library_built_on_others_declares_bounded_ranges_that_contain_this_repository(dist):
+    """``>=lower,<upper``: the lower bound is the oldest version whose public surface the code uses, the upper
+    bound the next incompatible release (a minor, while the major is 0). Never ``==`` and never open-ended, and
+    the version in this repository must satisfy it, or the repository would not install its own libraries."""
+    for requirement in _project(dist)["dependencies"]:
+        name = _normalise(requirement)
+        if name not in LIBRARIES:
+            continue
+        match = re.fullmatch(rf"{re.escape(name)}>=(\d+(?:\.\d+)*),<(\d+(?:\.\d+)*)", requirement.replace(" ", ""))
+        assert match, f"{dist}: {requirement!r} is not a bounded >=lower,<upper range"
+        lower, upper = _version(match[1]), _version(match[2])
+        have = _version(_project(name)["version"])
+        assert lower <= have < upper, f"{dist}: {requirement} excludes {name} {_project(name)['version']} of this repo"
+
+
+def test_the_meta_package_ships_no_code():
     config = tomllib.loads((DISTRIBUTIONS / "launch-runner" / "pyproject.toml").read_text(encoding="utf-8"))
     assert config["tool"]["setuptools"]["packages"] == []
 
@@ -189,7 +218,7 @@ def test_the_sdist_is_self_contained_and_a_wheel_built_from_it_has_the_code(dist
 
 # ----------------------------------------------------------------------------- build + install smoke test
 def _pip_available() -> bool:
-    from commandport.domain import CaptureSpec
+    from lifecycle_runner.domain import CaptureSpec
     from lifecycle_runner.api import capture
 
     result = capture(CaptureSpec((sys.executable, "-c", "import pip, setuptools"), timeout_seconds=60))
@@ -197,7 +226,7 @@ def _pip_available() -> bool:
 
 
 def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
-    from commandport.domain import CaptureSpec
+    from lifecycle_runner.domain import CaptureSpec
     from lifecycle_runner.api import capture
 
     if not _pip_available():
@@ -211,7 +240,7 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
     ))
 
     wheels = tmp_path / "wheels"
-    for dist in ("commandport", "proclaunch", "lifecycle-runner", "launch-runner"):
+    for dist in ("commandport", "proclaunch", "lifecycle-runner", "ensure-running", "launch-runner"):
         built = capture(CaptureSpec(
             (sys.executable, "-m", "pip", "wheel", str(tree / "distributions" / dist), "--no-deps",
              "--no-build-isolation", "-q", "--disable-pip-version-check", "-w", str(wheels)),
@@ -219,7 +248,7 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
         ))
         assert built.ok, f"building {dist}: {built.stderr or built.stdout or built.error}"
     wheel_files = sorted(p.name for p in wheels.glob("*.whl"))
-    assert len(wheel_files) == 4, wheel_files
+    assert len(wheel_files) == 5, wheel_files
 
     import zipfile
 
@@ -251,10 +280,10 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
     (project / "pyproject.toml").write_text('[tool.commandport]\nroots = ["app"]\n', encoding="utf-8")
     smoke = (
         "import sys; sys.path.insert(0, sys.argv[1])\n"
-        "import commandport, lifecycle_runner, proclaunch\n"
-        "for m in (commandport, lifecycle_runner, proclaunch):\n"
+        "import commandport, ensure_running, lifecycle_runner, proclaunch\n"
+        "for m in (commandport, ensure_running, lifecycle_runner, proclaunch):\n"
         "    assert m.__file__.startswith(sys.argv[1]), m.__file__\n"
-        "from commandport.domain import CaptureSpec\n"
+        "from lifecycle_runner.domain import CaptureSpec\n"
         "from commandport.scan import load_config, scan\n"
         "from lifecycle_runner.api import capture\n"
         "done = capture(CaptureSpec((sys.executable, '-c', 'print(42)'), timeout_seconds=30))\n"
@@ -267,3 +296,34 @@ def test_the_wheels_build_offline_install_to_a_clean_target_and_work(tmp_path):
         (sys.executable, "-c", smoke, str(target), str(project)), cwd=str(tmp_path), timeout_seconds=120,
     ))
     assert ran.ok and "smoke ok" in ran.stdout, ran.stderr or ran.stdout or ran.error
+
+
+def test_a_library_built_on_others_uses_only_their_declared_public_surface():
+    """The compatibility contract a bounded range promises: ``ensure_running`` imports siblings only from their
+    ``api`` module and only names listed in that module's ``__all__``. Anything else would be an internal that a
+    patch release is free to change."""
+    import importlib
+
+    for dist, siblings in (("ensure-running", ("proclaunch", "lifecycle_runner")),):
+        _, package_dir = LIBRARIES[dist]
+        for path in package_dir.rglob("*.py"):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        assert alias.name.split(".")[0] not in siblings or alias.name.count(".") == 0, (
+                            f"{path.name}: `import {alias.name}` reaches past the package's public module"
+                        )
+                elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                    top = node.module.split(".")[0]
+                    if top in siblings and node.module == top:  # `from proclaunch import X`
+                        for alias in node.names:
+                            assert alias.name in ("api", "__version__"), (
+                                f"{path.name}: `from {top} import {alias.name}` reaches an internal module"
+                            )
+                        continue
+                    if top not in siblings:
+                        continue
+                    assert node.module == f"{top}.api", f"{path.name}: imports {node.module}, not {top}.api"
+                    public = set(importlib.import_module(node.module).__all__)
+                    for alias in node.names:
+                        assert alias.name in public, f"{path.name}: {node.module}.{alias.name} is not in __all__"

@@ -1,7 +1,7 @@
 """Launching: supervisor first, direct spawn as the fallback. Depends on ports only."""
 from __future__ import annotations
 
-from commandport.domain import LaunchMethod, LaunchResult, ProcessSpec
+from proclaunch.domain import LaunchMethod, LaunchResult, ProcessSpec
 from proclaunch.ports import ProcessSpawner
 
 

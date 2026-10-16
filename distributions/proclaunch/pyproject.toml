@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "proclaunch"
-version = "0.1.1"
-description = "Start, stop and supervise long-running background processes with a contract (implements commandport)."
+version = "0.2.0"
+description = "Start, stop and supervise long-running background processes with identity-checked records and readiness probes."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -32,7 +32,6 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "commandport==0.1.1",
     "psutil>=5.9",
 ]
 
@@ -42,7 +41,7 @@ Repository = "https://github.com/112345brian/launch-runner"
 Issues = "https://github.com/112345brian/launch-runner/issues"
 
 [tool.setuptools]
-packages = ["proclaunch", "proclaunch.adapters"]
+packages = ["proclaunch", "proclaunch.adapters", "proclaunch._vendor"]
 
 [tool.setuptools.package-dir]
 "" = "src"

@@ -7,7 +7,7 @@ and then propagates: Ctrl-C is not a result).
 """
 from __future__ import annotations
 
-from commandport.domain import CaptureResult, CaptureSpec, RunOutcome
+from lifecycle_runner.domain import CaptureResult, CaptureSpec, RunOutcome
 from lifecycle_runner.ports import CaptureSpawner, Clock
 
 

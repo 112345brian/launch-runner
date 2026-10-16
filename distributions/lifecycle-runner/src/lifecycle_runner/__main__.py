@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 from lifecycle_runner.api import run
-from commandport.domain import RunOutcome, RunResult, RunSpec
+from lifecycle_runner.domain import RunOutcome, RunResult, RunSpec
 
 EXIT_TIMED_OUT = 124
 EXIT_RUNNER_FAILED = 125

@@ -18,8 +18,10 @@ import subprocess
 import sys
 from typing import IO
 
-from commandport.domain import RunSpec
-from proclaunch.api import terminate_process, windowless_creationflags
+from lifecycle_runner.domain import RunSpec
+from lifecycle_runner.adapters.process_group import own_group
+from lifecycle_runner.adapters.process_tree import terminate_tree
+from lifecycle_runner.adapters.windows import windowless_creationflags
 
 _TERMINATE_TIMEOUT_SECONDS = 5.0
 
@@ -35,9 +37,10 @@ def _caller_has_console() -> bool:
 
 
 class PopenChild:
-    def __init__(self, proc: subprocess.Popen, log: IO[bytes] | None) -> None:
+    def __init__(self, proc: subprocess.Popen, log: IO[bytes] | None, *, own_group: bool = False) -> None:
         self._proc = proc
         self._log = log
+        self._own_group = own_group
         self.pid = proc.pid
 
     def _close_log(self) -> None:
@@ -55,7 +58,7 @@ class PopenChild:
 
     def kill(self) -> bool:
         try:
-            gone = terminate_process(self.pid, timeout=_TERMINATE_TIMEOUT_SECONDS)
+            gone = terminate_tree(self._proc, own_group=self._own_group, timeout=_TERMINATE_TIMEOUT_SECONDS)
             if not gone:
                 try:
                     self._proc.kill()
@@ -93,10 +96,10 @@ class PopenSpawner:
             proc = subprocess.Popen(
                 argv, cwd=spec.cwd, env=env,
                 stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
-                creationflags=windowless_creationflags(),
+                creationflags=windowless_creationflags(), **own_group(),
             )
         except BaseException:
             if log is not None:
                 log.close()
             raise
-        return PopenChild(proc, log)
+        return PopenChild(proc, log, own_group=bool(own_group()))
