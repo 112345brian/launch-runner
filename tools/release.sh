@@ -17,6 +17,14 @@ UPLOAD=0
 
 # dependency order: the meta-package pins the others, so it goes last
 DISTS=(commandport proclaunch lifecycle-runner ensure-running launch-runner)
+# RELEASE_SKIP="ensure-running ..." leaves distributions out of this release
+if [[ -n "${RELEASE_SKIP:-}" ]]; then
+    KEEP=()
+    for dist in "${DISTS[@]}"; do
+        [[ " $RELEASE_SKIP " == *" $dist "* ]] || KEEP+=("$dist")
+    done
+    DISTS=("${KEEP[@]}")
+fi
 
 die() { echo "release: $*" >&2; exit 1; }
 step() { echo; echo "== $*"; }
