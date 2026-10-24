@@ -26,7 +26,6 @@ from stackrun.testing import (
     FakeResolver,
     FakeRunner,
     FakeShutdown,
-    InMemoryRunRecord,
     check_ports,
     check_processes,
     check_run_record,
@@ -453,6 +452,32 @@ def test_bad_toml_is_a_stackrun_error(text):
 # --- the fakes satisfy the conformance kit ------------------------------------------------------------------
 
 
+# A faithful in-memory RunRecord: it exists only to prove the conformance kit accepts a good record, so it
+# lives with the tests instead of in the public testing module.
+class InMemoryRunRecord:
+    """A faithful RunRecord over a shared ``store`` dict (one record per key), for several 'launchers' in one
+    process. ``processes`` supplies this launcher's identity and the liveness of the holder."""
+
+    def __init__(self, processes: FakeProcesses, store: dict[str, Identity], key: str = "stack") -> None:
+        self._processes, self._store, self._key = processes, store, key
+
+    def claim(self) -> bool:
+        holder = self._store.get(self._key)
+        me = self._processes.current()
+        if holder is not None and holder != me and self._processes.is_alive(holder):
+            return False
+        self._store[self._key] = me
+        return True
+
+    def load(self) -> Identity | None:
+        return self._store.get(self._key)
+
+    def clear(self) -> None:
+        self.discard(self._processes.current())
+
+    def discard(self, identity: Identity) -> None:
+        if self._store.get(self._key) == identity:
+            del self._store[self._key]
 def test_in_memory_record_passes_the_kit():
     store: dict[str, Identity] = {}
     check_run_record(lambda me, procs: InMemoryRunRecord(procs, store))

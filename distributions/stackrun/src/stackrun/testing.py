@@ -31,7 +31,6 @@ __all__ = [
     "FakeResolver",
     "FakeRunner",
     "FakeShutdown",
-    "InMemoryRunRecord",
     "check_ports",
     "check_processes",
     "check_run_record",
@@ -170,7 +169,7 @@ class FakeReadiness:
 
 class FakeRecord:
     """A scripted RunRecord: ``holder_alive`` makes every claim fail; ``identity`` is what ``load`` returns;
-    every call is counted. Not a faithful store: use ``InMemoryRunRecord`` for that."""
+    every call is counted. A scripted stub, not a store: the conformance kit (check_run_record) tests real ones."""
 
     def __init__(self, holder_alive: bool = False, identity: Identity | None = None) -> None:
         self.holder_alive, self.identity = holder_alive, identity
@@ -191,32 +190,6 @@ class FakeRecord:
         self.discards.append(identity)
         if self.identity == identity:
             self.identity = None
-
-
-class InMemoryRunRecord:
-    """A faithful RunRecord over a shared ``store`` dict (one record per key), for several 'launchers' in one
-    process. ``processes`` supplies this launcher's identity and the liveness of the holder."""
-
-    def __init__(self, processes: FakeProcesses, store: dict[str, Identity], key: str = "stack") -> None:
-        self._processes, self._store, self._key = processes, store, key
-
-    def claim(self) -> bool:
-        holder = self._store.get(self._key)
-        me = self._processes.current()
-        if holder is not None and holder != me and self._processes.is_alive(holder):
-            return False
-        self._store[self._key] = me
-        return True
-
-    def load(self) -> Identity | None:
-        return self._store.get(self._key)
-
-    def clear(self) -> None:
-        self.discard(self._processes.current())
-
-    def discard(self, identity: Identity) -> None:
-        if self._store.get(self._key) == identity:
-            del self._store[self._key]
 
 
 class FakeProcesses:
