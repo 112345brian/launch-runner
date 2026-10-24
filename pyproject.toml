@@ -5,7 +5,7 @@
 testpaths = ["tests"]
 pythonpath = [
     "distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src",
-    "distributions/ensure-running/src",
+    "distributions/ensure-running/src", "distributions/stackrun/src",
 ]
 addopts = "-q"
 
@@ -20,13 +20,13 @@ select = ["F", "E9", "E711", "E712", "E713", "E714", "E721", "E722"]
 [tool.commandport]
 source_roots = [
     "distributions/commandport/src", "distributions/proclaunch/src", "distributions/lifecycle-runner/src",
-    "distributions/ensure-running/src",
+    "distributions/ensure-running/src", "distributions/stackrun/src",
 ]
-allow = ["lifecycle_runner.adapters", "proclaunch.adapters"]
+allow = ["lifecycle_runner.adapters", "proclaunch.adapters", "stackrun.adapters"]
 exclude_dirs = ["tests"]
 
 [tool.importlinter]
-root_packages = ["commandport", "proclaunch", "lifecycle_runner", "ensure_running"]
+root_packages = ["commandport", "proclaunch", "lifecycle_runner", "ensure_running", "stackrun"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -88,4 +88,35 @@ name = "vendored helpers import nothing from the family"
 type = "forbidden"
 source_modules = ["lifecycle_runner._vendor", "proclaunch._vendor"]
 forbidden_modules = ["commandport", "proclaunch", "lifecycle_runner", "ensure_running"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "stackrun core must not import adapters, third-party process libraries or process/file/network modules"
+type = "forbidden"
+source_modules = [
+    "stackrun.domain", "stackrun.ports", "stackrun.launcher", "stackrun.declarative", "stackrun.testing",
+]
+forbidden_modules = [
+    "stackrun.adapters", "stackrun.api", "stackrun.cli", "psutil", "proclaunch", "subprocess", "socket", "urllib",
+    "tempfile", "shutil", "signal", "webbrowser",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "stackrun adapters must not import the use case or the composition roots"
+type = "forbidden"
+source_modules = ["stackrun.adapters"]
+forbidden_modules = ["stackrun.launcher", "stackrun.api", "stackrun.cli", "stackrun.testing", "stackrun.declarative"]
+
+[[tool.importlinter.contracts]]
+name = "stackrun is independent of the other libraries (proclaunch only inside the terminate adapter)"
+type = "forbidden"
+source_modules = [
+    "stackrun.domain", "stackrun.ports", "stackrun.launcher", "stackrun.declarative", "stackrun.testing",
+    "stackrun.api", "stackrun.cli",
+    "stackrun.adapters.browser", "stackrun.adapters.console", "stackrun.adapters.environment",
+    "stackrun.adapters.file_record", "stackrun.adapters.http_probe", "stackrun.adapters.resolver",
+    "stackrun.adapters.signals", "stackrun.adapters.socket_ports", "stackrun.adapters.subprocess_runner",
+]
+forbidden_modules = ["lifecycle_runner", "ensure_running", "commandport"]
 allow_indirect_imports = true
