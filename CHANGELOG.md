@@ -3,6 +3,14 @@
 Each distribution has its own version; see `distributions/README.md` for how they relate. 0.x: a minor release
 may break the public surface, a patch release may not.
 
+## Unreleased — stackrun 0.1.0 (new)
+
+- **stackrun**: a foreground supervisor for a group of local services, generalised from DeepInterview's launcher.
+  Single instance (exclusive claim file holding pid + start time), port-clash refusal naming the holder, Ctrl+C /
+  window close stops every service in reverse order, `ready_url` gating, optional `Hook`, `stackrun.toml` loader and
+  `python -m stackrun`. Ports are Protocols; `stackrun.testing` has fakes and a conformance kit. No required
+  dependencies; `stackrun[psutil]` / `stackrun[proclaunch]` for the default adapters. See `distributions/stackrun/DESIGN.md`.
+
 ## 0.2.0 — commandport, proclaunch, lifecycle-runner, launch-runner
 
 ### Breaking
