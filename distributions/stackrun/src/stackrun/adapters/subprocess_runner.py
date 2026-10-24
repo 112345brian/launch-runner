@@ -15,7 +15,7 @@ _STOP_TIMEOUT_SECONDS = 5.0
 
 
 class _Process:
-    """Implements ProcessHandle. Kills the whole tree: npx, uv and pnpm all spawn children."""
+    """Implements ProcessHandle. Kills the whole tree: launcher wrappers (npx, uv...) spawn children."""
 
     def __init__(self, popen: subprocess.Popen[bytes], terminate: Terminate) -> None:
         self._popen = popen
