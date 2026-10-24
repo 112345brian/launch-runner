@@ -33,4 +33,4 @@ def test_no_process_is_started_outside_the_adapters():
 
 
 def test_the_only_modules_allowed_raw_process_apis_are_the_two_adapter_packages():
-    assert scan.load_config(REPO).allow == ("lifecycle_runner.adapters", "proclaunch.adapters")
+    assert scan.load_config(REPO).allow == ("lifecycle_runner.adapters", "proclaunch.adapters", "stackrun.adapters")
