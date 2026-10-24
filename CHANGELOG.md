@@ -3,6 +3,14 @@
 Each distribution has its own version; see `distributions/README.md` for how they relate. 0.x: a minor release
 may break the public surface, a patch release may not.
 
+## Unreleased
+
+### Fixed
+
+- proclaunch: `register_self` / `ServiceManager.register_self` was check-then-act, so two processes calling it at
+  the same moment could both get `True`. It now writes with an exclusive create or a compare-and-swap against the
+  record it inspected (the same store operations `start` uses), so exactly one live holder wins.
+
 ## 0.2.0 — commandport, proclaunch, lifecycle-runner, launch-runner
 
 ### Breaking

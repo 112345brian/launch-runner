@@ -17,6 +17,7 @@ from proclaunch.domain import (
 from proclaunch.ports import BackgroundLauncher, Clock, ProcessInspector, RecordStore
 
 ADOPT_WAIT_SECONDS = 8.0
+_REGISTER_ATTEMPTS = 5
 
 
 class ServiceManager:
@@ -149,19 +150,32 @@ class ServiceManager:
         """Record the *calling* process as service *name* (for a process started by
         something other than ``start``, e.g. an OS logon trigger). False, leaving the
         record alone, if a different live process already holds it or it is unreadable."""
-        try:
-            record = self._store.load(name)
-        except RecordUnreadable:
-            return False
         me = self._inspector.current()
         if me is None:
             return False
-        if record is not None and record.identity is not None:
-            other = record.identity
-            if other.pid != me.pid and self._inspector.is_live(other):
+        mine = ServiceRecord(name, me, method="self")
+        # Every write is exclusive-create or a compare-and-swap against the record just inspected (as in
+        # ``_reserve``), so of several simultaneous callers exactly one writes; a loser re-reads, sees the
+        # winner as a live holder and returns False. The retries only cover losing to a record that vanished
+        # or changed between our read and our write.
+        for _ in range(_REGISTER_ATTEMPTS):
+            try:
+                record = self._store.load(name)
+            except RecordUnreadable:
                 return False
-        try:
-            self._store.replace(name, ServiceRecord(name, me, method="self"))
-        except OSError:
-            return False
-        return True
+            try:
+                if record is None:
+                    if self._store.create_exclusive(name, mine):
+                        return True
+                    continue
+                other = record.identity
+                if other is not None:
+                    if other == me:
+                        return True  # already registered by this process
+                    if other.pid != me.pid and self._inspector.is_live(other):
+                        return False
+                if self._store.take_over(name, record, mine):
+                    return True
+            except OSError:
+                return False
+        return False

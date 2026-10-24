@@ -23,7 +23,7 @@ ROUNDS = 8
 SRC = str(Path(__file__).resolve().parent.parent / "distributions" / "proclaunch" / "src")
 
 CHILD = r"""
-import sys, time
+import os, sys, time
 from pathlib import Path
 from proclaunch import api
 
@@ -42,7 +42,7 @@ for r in range(rounds):
     (root / f"ready-{r}-{index}").write_text("")
     wait_for(root / f"go-{r}")
     won = api.register_self(f"svc{r}", state_dir=root / "state")
-    (root / f"result-{r}-{index}").write_text("1" if won else "0")
+    (root / f"result-{r}-{index}").write_text(f"{int(won)} {os.getpid()}")
 wait_for(root / "release")
 """
 
@@ -68,13 +68,13 @@ def test_exactly_one_of_several_processes_registering_at_once_wins(tmp_path):
             _wait(lambda: len(list(tmp_path.glob(f"ready-{r}-*"))) == PROCESSES, f"children ready for round {r}")
             (tmp_path / f"go-{r}").write_text("")
             _wait(lambda: len(list(tmp_path.glob(f"result-{r}-*"))) == PROCESSES, f"results of round {r}")
-            winners_per_round.append(sum(p.read_text() == "1" for p in tmp_path.glob(f"result-{r}-*")))
+            winners_per_round.append(sum(p.read_text().startswith("1 ") for p in tmp_path.glob(f"result-{r}-*")))
         assert winners_per_round == [1] * ROUNDS, winners_per_round
-        # the record names the winner, who is one of the children
-        pids = {child.pid for child in children}
+        # the record names the winner (its own os.getpid(), which a launcher shim may make differ from Popen's)
         for r in range(ROUNDS):
+            winner = next(p.read_text().split()[1] for p in tmp_path.glob(f"result-{r}-*") if p.read_text().startswith("1 "))
             record = json.loads((tmp_path / "state" / f"svc{r}.json").read_text(encoding="utf-8"))
-            assert record["pid"] in pids
+            assert str(record["pid"]) == winner
     finally:
         (tmp_path / "release").write_text("")
         for child in children:
