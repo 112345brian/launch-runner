@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stackrun"
+version = "0.1.0"
+description = "Run a group of local services as one foreground stack: single instance, port-clash check, clean shutdown."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Brian Powers" }]
+keywords = ["supervisor", "process", "dev-server", "launcher", "ports", "foreground"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+psutil = ["psutil>=5.9"]
+proclaunch = ["proclaunch>=0.2.0,<0.3"]
+all = ["psutil>=5.9", "proclaunch>=0.2.0,<0.3"]
+
+[project.scripts]
+stackrun = "stackrun.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/112345brian/launch-runner"
+Repository = "https://github.com/112345brian/launch-runner"
+Issues = "https://github.com/112345brian/launch-runner/issues"
+
+[tool.setuptools]
+packages = ["stackrun", "stackrun.adapters"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.package-data]
+stackrun = ["py.typed"]
