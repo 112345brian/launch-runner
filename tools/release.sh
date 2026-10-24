@@ -66,6 +66,22 @@ on_pypi() {  # name version -> 0 when that exact version is already published
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
+step "meta-package pins must be published or part of this release"
+# launch-runner pins its members exactly; uploading it while a pinned version is neither on PyPI nor in this
+# release (for instance after RELEASE_SKIP) would publish an uninstallable package.
+for dist in "${DISTS[@]}"; do
+    [[ "$dist" == "launch-runner" ]] || continue
+    while IFS= read -r pin; do
+        name="${pin%%==*}"; pinned="${pin##*==}"
+        if [[ "$(version_of "$name")" != "$pinned" ]]; then
+            die "launch-runner pins $pin but $name is $(version_of "$name") in this checkout"
+        fi
+        if [[ " ${DISTS[*]} " != *" $name "* ]] && ! on_pypi "$name" "$pinned"; then
+            die "launch-runner pins $pin, which is neither on PyPI nor part of this release"
+        fi
+    done < <("$PYTHON" -c "import tomllib; [print(r.replace(' ', '')) for r in tomllib.load(open('distributions/launch-runner/pyproject.toml','rb'))['project']['dependencies']]")
+done
+
 step "build and check"
 TO_UPLOAD=()
 for dist in "${DISTS[@]}"; do

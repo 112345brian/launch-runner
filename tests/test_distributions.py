@@ -327,3 +327,54 @@ def test_a_library_built_on_others_uses_only_their_declared_public_surface():
                     public = set(importlib.import_module(node.module).__all__)
                     for alias in node.names:
                         assert alias.name in public, f"{path.name}: {node.module}.{alias.name} is not in __all__"
+
+
+def _satisfies(version: str, specifier: str) -> bool:
+    """Whether ``version`` satisfies a comma-separated ``==``/``>=``/``<`` specifier (all this repo uses)."""
+    have = _version(version)
+    for clause in specifier.split(","):
+        match = re.fullmatch(r"(==|>=|<=|<|>)(\d+(?:\.\d+)*)", clause)
+        assert match, f"unsupported version specifier {clause!r}"
+        op, want = match[1], _version(match[2])
+        if not {"==": have == want, ">=": have >= want, "<=": have <= want, "<": have < want, ">": have > want}[op]:
+            return False
+    return True
+
+
+def _sibling_requirements(dist: str) -> list[tuple[str, str, str]]:
+    """(sibling, specifier, requirement text) for each dependency of ``dist`` that names another distribution."""
+    found = []
+    for requirement in _project(dist).get("dependencies", []):
+        name = _normalise(requirement)
+        if name in {*LIBRARIES, "launch-runner"}:
+            text = requirement.replace(" ", "")
+            found.append((name, text[len(name):], requirement))
+    return found
+
+
+@pytest.mark.parametrize("dist", sorted({*LIBRARIES, "launch-runner"}))
+def test_no_distribution_pins_a_sibling_at_a_version_that_is_not_the_siblings_version(dist):
+    """Whatever a distribution says about a sibling (``==`` in the meta-package, ``>=,<`` in a dependent library,
+    or anything added later) must be satisfied by the sibling's version in this repository. The published
+    ``launch-runner`` 0.1.1 pinned ``commandport==0.1.1`` while the libraries were 0.2.0; this fails on that."""
+    for sibling, specifier, requirement in _sibling_requirements(dist):
+        version = _project(sibling)["version"]
+        assert _satisfies(version, specifier), f"{dist} requires {requirement!r} but this repo has {sibling} {version}"
+
+
+def test_the_pin_check_catches_a_stale_pin():
+    assert _satisfies("0.2.0", "==0.2.0")
+    assert not _satisfies("0.2.0", "==0.1.1")
+    assert not _satisfies("0.2.0", ">=0.1,<0.2")
+    assert _satisfies("0.1.5", ">=0.1,<0.2")
+
+
+def test_the_release_order_publishes_the_pinned_libraries_before_the_meta_package():
+    """tools/release.sh uploads in the order of its DISTS array; the meta-package pins the others exactly, so it
+    must come last and every distribution must be listed (a missing one would never be published)."""
+    script = (REPO / "tools" / "release.sh").read_text(encoding="utf-8")
+    match = re.search(r"^DISTS=\(([^)]*)\)", script, re.MULTILINE)
+    assert match, "release.sh has no DISTS=(...) array"
+    order = match[1].split()
+    assert set(order) == {*LIBRARIES, "launch-runner"}
+    assert order[-1] == "launch-runner"

@@ -3,6 +3,18 @@
 Each distribution has its own version; see `distributions/README.md` for how they relate. 0.x: a minor release
 may break the public surface, a patch release may not.
 
+## Unreleased
+
+### Fixed
+
+- launch-runner: PyPI still serves `launch-runner` 0.1.1, which pins `commandport==0.1.1`,
+  `lifecycle-runner==0.1.1` and `proclaunch==0.1.1`, while the libraries are published at 0.2.0. The repository
+  already pins the 0.2.0 set; the meta-package 0.2.0 just has not been uploaded (the next `tools/release.sh
+  --upload` publishes it, last). To keep the pins from drifting again, `tests/test_distributions.py` now fails when
+  any distribution's requirement on a sibling is not satisfied by that sibling's version and when `release.sh`
+  does not publish the meta-package last, and `tools/release.sh` refuses to upload the meta-package when a pinned
+  version is neither on PyPI nor part of the same release.
+
 ## 0.2.0 — commandport, proclaunch, lifecycle-runner, launch-runner
 
 ### Breaking
